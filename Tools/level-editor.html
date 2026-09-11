@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V-Engine Level Editor</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #1a1a2e; color: #e0e0e0;
+    display: flex; height: 100vh; overflow: hidden;
+    user-select: none;
+  }
+
+  /* LEFT PANEL */
+  .panel-left {
+    width: 260px; min-width: 260px;
+    background: #16213e; border-right: 2px solid #7c3aed;
+    display: flex; flex-direction: column; overflow-y: auto;
+  }
+  .panel-left h1 {
+    font-size: 1.1rem; padding: 14px 16px;
+    background: linear-gradient(135deg, #7c3aed, #6d28d9);
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .section { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .section-title {
+    font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;
+    color: #7c3aed; font-weight: 700; margin-bottom: 8px;
+  }
+
+  label { display: block; font-size: 0.8rem; color: #a0a0b8; margin-bottom: 3px; }
+  input[type="number"], input[type="text"], input[type="color"] {
+    width: 100%; padding: 6px 8px; border-radius: 5px;
+    border: 1px solid #333; background: #0f0f23; color: #fff;
+    font-size: 0.85rem; margin-bottom: 8px; outline: none;
+  }
+  input[type="color"] { height: 32px; padding: 2px; cursor: pointer; }
+  input:focus { border-color: #7c3aed; }
+
+  .row { display: flex; gap: 6px; }
+  .row > div { flex: 1; }
+
+  /* Tool buttons */
+  .tool-bar { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tool-btn {
+    flex: 1; min-width: 60px; padding: 8px 6px; border-radius: 6px;
+    border: 2px solid transparent; background: #222; color: #aaa;
+    cursor: pointer; font-size: 0.75rem; font-weight: 600;
+    text-align: center; transition: all 0.15s;
+  }
+  .tool-btn.active { border-color: #7c3aed; color: #7c3aed; background: rgba(124,58,237,0.15); }
+  .tool-btn:hover { background: #333; }
+  .tool-btn.solid-tool { border-bottom: 3px solid #2d7832; }
+  .tool-btn.plat-tool { border-bottom: 3px solid #505064; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 8px 14px; border-radius: 7px; border: none;
+    font-size: 0.8rem; font-weight: 600; cursor: pointer;
+    transition: all 0.15s; width: 100%;
+  }
+  .btn-primary { background: #7c3aed; color: #fff; }
+  .btn-primary:hover { background: #6d28d9; }
+  .btn-success { background: #10b981; color: #000; }
+  .btn-success:hover { background: #059669; }
+  .btn-secondary { background: #333; color: #ccc; }
+  .btn-secondary:hover { background: #444; }
+  .btn-danger { background: #ef4444; color: #fff; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-sm { padding: 5px 8px; font-size: 0.75rem; }
+
+  /* Entity list */
+  .entity-list { max-height: 200px; overflow-y: auto; }
+  .entity-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 8px; border-radius: 5px; cursor: pointer;
+    font-size: 0.8rem; transition: background 0.1s;
+    border: 1px solid transparent;
+  }
+  .entity-item:hover { background: rgba(124,58,237,0.1); }
+  .entity-item.selected { border-color: #7c3aed; background: rgba(124,58,237,0.15); }
+  .entity-item .swatch {
+    width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
+  }
+  .entity-item .entity-info { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .entity-item .delete-btn {
+    background: none; border: none; color: #666; cursor: pointer; font-size: 0.9rem;
+  }
+  .entity-item .delete-btn:hover { color: #ef4444; }
+
+  /* CENTER */
+  .panel-center { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .toolbar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 14px; background: #0f0f23;
+    border-bottom: 1px solid #333; font-size: 0.8rem;
+  }
+  .toolbar .info { color: #888; }
+  .toolbar button {
+    padding: 3px 8px; border-radius: 4px; border: 1px solid #444;
+    background: #222; color: #ccc; cursor: pointer; font-size: 0.8rem;
+  }
+  .toolbar button:hover { background: #333; }
+  .toolbar .spacer { flex: 1; }
+
+  .canvas-area {
+    flex: 1; overflow: hidden; position: relative; cursor: crosshair;
+    background: #111;
+  }
+  .canvas-area canvas { position: absolute; top: 0; left: 0; }
+
+  .checkbox-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .checkbox-row input[type="checkbox"] { accent-color: #7c3aed; }
+  .checkbox-row label { margin: 0; font-size: 0.8rem; }
+
+  /* Tileset palette */
+  .tileset-palette-wrap {
+    max-height: 300px; overflow: auto;
+    border: 1px solid #333; border-radius: 5px; background: #0f0f23;
+    margin-bottom: 8px; position: relative; cursor: pointer;
+  }
+  .tileset-palette-wrap canvas { display: block; image-rendering: pixelated; }
+  .tile-tool { border-bottom: 3px solid #7c3aed; }
+
+  /* Tile Collision Editor */
+  #tileCollisionSection { display: none; }
+  .collision-editor-wrap {
+    position: relative; width: 150px; height: 150px;
+    margin: 0 auto 8px; background: #0a0a1a;
+    border: 1px solid #333; border-radius: 5px;
+    cursor: crosshair; overflow: hidden;
+  }
+  .collision-editor-wrap canvas { display: block; image-rendering: pixelated; }
+  .collision-inputs .row { display: flex; gap: 4px; }
+  .collision-inputs .row > div { flex: 1; }
+  .collision-inputs label { font-size: 0.7rem; color: #888; margin-bottom: 1px; }
+  .collision-inputs input[type="number"] {
+    padding: 4px 5px; font-size: 0.75rem; margin-bottom: 4px;
+  }
+  .collision-presets { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 4px; }
+  .collision-presets .btn { flex: 1; min-width: 50px; padding: 4px 6px; font-size: 0.7rem; }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 20px; right: 20px;
+    padding: 10px 18px; border-radius: 7px;
+    background: #10b981; color: #000; font-weight: 600;
+    font-size: 0.85rem; opacity: 0;
+    transition: opacity 0.3s; pointer-events: none; z-index: 100;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- LEFT PANEL -->
+<div class="panel-left">
+  <h1><span style="font-size:1.3rem;">V</span> Level Editor</h1>
+
+  <div class="section">
+    <div class="section-title">Tools</div>
+    <div class="tool-bar">
+      <div class="tool-btn active" data-tool="select" onclick="setTool('select')">Select</div>
+      <div class="tool-btn solid-tool" data-tool="solid" onclick="setTool('solid')">Solid</div>
+      <div class="tool-btn plat-tool" data-tool="platform" onclick="setTool('platform')">Platform</div>
+      <div class="tool-btn" data-tool="spawn" onclick="setTool('spawn')">Spawn</div>
+      <div class="tool-btn" data-tool="delete" onclick="setTool('delete')">Eraser</div>
+      <div class="tool-btn tile-tool" data-tool="tile" onclick="setTool('tile')">Tile</div>
+      <div class="tool-btn tile-tool" data-tool="fill" onclick="setTool('fill')">Fill</div>
+      <div class="tool-btn tile-tool" data-tool="tilerect" onclick="setTool('tilerect')">TileRect</div>
+      <div class="tool-btn tile-tool" data-tool="eyedrop" onclick="setTool('eyedrop')">Pick</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Level</div>
+    <div class="row">
+      <div><label>Width</label><input type="number" id="levelW" value="2400" min="100" onchange="updateLevelSize()" /></div>
+      <div><label>Height</label><input type="number" id="levelH" value="480" min="100" onchange="updateLevelSize()" /></div>
+    </div>
+    <div class="row">
+      <div><label>Grid Size</label><input type="number" id="gridSize" value="16" min="4" max="128" onchange="gridSize=parseInt(this.value)||16; draw()" /></div>
+      <div style="padding-top:18px;">
+        <div class="checkbox-row"><input type="checkbox" id="snapGrid" checked /><label for="snapGrid">Snap</label></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">New Entity Color</div>
+    <div class="row">
+      <div><label>Solid</label><input type="color" id="solidColor" value="#2d7832" /></div>
+      <div><label>Platform</label><input type="color" id="platColor" value="#505064" /></div>
+    </div>
+  </div>
+
+  <div class="section" id="tilemapSection">
+    <div class="section-title">Tilemap</div>
+    <button class="btn btn-primary btn-sm" onclick="document.getElementById('tilesetInput').click()" style="margin-bottom:8px;">Load Tileset</button>
+    <input type="file" id="tilesetInput" accept=".png,.jpg,.bmp" style="display:none;" />
+    <div class="row">
+      <div><label>Tile Size</label><input type="number" id="tileSize" value="16" min="4" max="256" onchange="updateTileSize()" /></div>
+      <div style="padding-top:18px;"><button class="btn btn-secondary btn-sm" onclick="redetectTileSize()">Auto</button></div>
+    </div>
+    <div class="checkbox-row"><input type="checkbox" id="paintSolid" checked /><label for="paintSolid">Paint Solid</label></div>
+    <div id="tilesetInfo" style="font-size:0.75rem;color:#888;margin-bottom:6px;display:none;">
+      Selected: tile #<span id="selectedTileNum">0</span>
+    </div>
+    <div class="row" id="paletteZoomRow" style="display:none; align-items:center; margin-bottom:4px;">
+      <label style="flex:none;width:40px;">Zoom</label>
+      <input type="range" id="paletteZoom" min="1" max="8" value="2" step="1"
+        style="flex:1; accent-color:#7c3aed;" oninput="renderTilesetPalette()" />
+      <span id="paletteZoomLabel" style="flex:none;width:24px;text-align:right;font-size:0.75rem;color:#888;">2x</span>
+    </div>
+    <div class="tileset-palette-wrap" id="tilesetPaletteWrap" style="display:none;">
+      <canvas id="tilesetPalette"></canvas>
+    </div>
+    <div style="font-size:0.7rem;color:#666;margin-top:2px;">Left-click paint, right-click erase</div>
+  </div>
+
+  <div class="section" id="tileCollisionSection">
+    <div class="section-title">Tile Collision</div>
+    <div class="collision-editor-wrap" id="collisionEditorWrap">
+      <canvas id="collisionEditor" width="150" height="150"></canvas>
+    </div>
+    <div class="collision-inputs">
+      <div class="row">
+        <div><label>X</label><input type="number" id="colRectX" value="0" min="0" onchange="onCollisionInputChange()" /></div>
+        <div><label>Y</label><input type="number" id="colRectY" value="0" min="0" onchange="onCollisionInputChange()" /></div>
+        <div><label>W</label><input type="number" id="colRectW" value="16" min="0" onchange="onCollisionInputChange()" /></div>
+        <div><label>H</label><input type="number" id="colRectH" value="16" min="0" onchange="onCollisionInputChange()" /></div>
+      </div>
+    </div>
+    <div class="collision-presets">
+      <button class="btn btn-secondary btn-sm" onclick="setCollisionPreset('full')">Full</button>
+      <button class="btn btn-secondary btn-sm" onclick="setCollisionPreset('none')">None</button>
+      <button class="btn btn-secondary btn-sm" onclick="setCollisionPreset('halfTop')">Half Top</button>
+      <button class="btn btn-secondary btn-sm" onclick="setCollisionPreset('halfBottom')">Half Bot</button>
+    </div>
+  </div>
+
+  <div class="section" id="propsSection" style="display:none;">
+    <div class="section-title">Selected Entity</div>
+    <div class="row">
+      <div><label>X</label><input type="number" id="propX" onchange="updateProp()" /></div>
+      <div><label>Y</label><input type="number" id="propY" onchange="updateProp()" /></div>
+    </div>
+    <div class="row">
+      <div><label>W</label><input type="number" id="propW" min="4" onchange="updateProp()" /></div>
+      <div><label>H</label><input type="number" id="propH" min="4" onchange="updateProp()" /></div>
+    </div>
+    <div class="row">
+      <div><label>Color</label><input type="color" id="propColor" onchange="updateProp()" /></div>
+      <div><label>Type</label>
+        <select id="propType" onchange="updateProp()" style="width:100%;padding:6px;border-radius:5px;border:1px solid #333;background:#0f0f23;color:#fff;font-size:0.85rem;margin-bottom:8px;">
+          <option value="solid">Solid</option>
+          <option value="platform">Platform</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-danger btn-sm" onclick="deleteSelected()">Delete</button>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Entities (<span id="entityCount">0</span>)</div>
+    <div class="entity-list" id="entityList"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">File</div>
+    <label>Level Name</label>
+    <input type="text" id="levelName" value="level1" />
+    <button class="btn btn-success" onclick="exportJSON()">Export .json</button>
+    <div class="row" style="margin-top:5px; gap:4px;">
+      <button class="btn btn-secondary" onclick="document.getElementById('importInput').click()">Import</button>
+      <button class="btn btn-danger btn-sm" onclick="newLevel()" style="width:auto; padding:8px 12px;">New</button>
+    </div>
+    <input type="file" id="importInput" accept=".json" style="display:none;" />
+  </div>
+</div>
+
+<!-- CENTER -->
+<div class="panel-center">
+  <div class="toolbar">
+    <span class="info" id="cursorInfo">(0, 0)</span>
+    <span class="info" id="toolInfo">Select</span>
+    <span class="spacer"></span>
+    <button onclick="setZoom(zoom - 0.25)">-</button>
+    <span id="zoomLevel">1x</span>
+    <button onclick="setZoom(zoom + 0.25)">+</button>
+    <button onclick="setZoom(1)">Reset</button>
+    <button onclick="fitToView()">Fit</button>
+  </div>
+  <div class="canvas-area" id="canvasArea">
+    <canvas id="mainCanvas"></canvas>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let level = {
+  width: 2400, height: 480,
+  spawn: { x: 100, y: 250 },
+  entities: [], // { type:'solid'|'platform', x, y, w, h, color:[r,g,b] }
+  tilemap: null  // { tileSize, gridW, gridH, tiles:[], solid:[] } or null
+};
+let selectedIdx = -1;
+let tool = 'select';
+let gridSize = 16;
+let zoom = 1;
+let panX = 0, panY = 0;
+
+// Tilemap
+let tilesetImage = null;    // HTMLImageElement of loaded tileset
+let tilesetFilename = '';   // original filename for export
+let tilesetCols = 0;        // columns in tileset image
+let tilesetRows = 0;        // rows in tileset image
+let selectedTile = 0;       // currently selected tile index (top-left of selection)
+let tileSelection = { col: 0, row: 0, w: 1, h: 1 }; // selected region in tileset grid
+let paletteDragging = false;
+let paletteStart = null;    // { col, row } of drag start in palette
+let isTilePainting = false; // true while dragging to paint/erase tiles
+let tileErasing = false;    // true if right-click erasing
+
+// Tile collision rects: tileIndex -> { x, y, w, h } in tile-local pixels
+let tileCollisionRects = {};
+
+// Collision editor interaction state
+let colEditorDragging = false;  // true while drawing/resizing on collision editor
+let colEditorAction = null;     // 'draw' | 'edge-t' | 'edge-b' | 'edge-l' | 'edge-r'
+let colEditorStart = null;      // { x, y } in tile-local pixels at drag start
+
+// Interaction
+let isDragging = false;
+let dragStart = null;  // { x, y } in world coords
+let dragAction = null; // 'create' | 'move' | 'resize' | 'pan'
+let resizeHandle = ''; // 'br', 'bl', 'tr', 'tl', 'r', 'l', 't', 'b'
+let dragOffset = null;
+let ghostRect = null;  // preview rect while creating
+
+// Undo
+const undoStack = [];
+const redoStack = [];
+const MAX_UNDO = 50;
+
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d');
+const canvasArea = document.getElementById('canvasArea');
+
+// ============================================================
+// TOOLS
+// ============================================================
+function setTool(t) {
+  tool = t;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+  document.getElementById('toolInfo').textContent = t.charAt(0).toUpperCase() + t.slice(1);
+  canvasArea.style.cursor = t === 'select' ? 'default' : t === 'delete' ? 'pointer' : t === 'eyedrop' ? 'copy' : 'crosshair';
+  if (t !== 'select') { selectedIdx = -1; updateProps(); renderEntityList(); draw(); }
+}
+
+// ============================================================
+// ZOOM / PAN
+// ============================================================
+function setZoom(z) {
+  zoom = Math.max(0.25, Math.min(4, z));
+  document.getElementById('zoomLevel').textContent = zoom + 'x';
+  draw();
+}
+
+function fitToView() {
+  const r = canvasArea.getBoundingClientRect();
+  const zx = r.width / (level.width + 40);
+  const zy = r.height / (level.height + 40);
+  zoom = Math.min(zx, zy);
+  panX = (r.width - level.width * zoom) / 2;
+  panY = (r.height - level.height * zoom) / 2;
+  document.getElementById('zoomLevel').textContent = zoom.toFixed(2) + 'x';
+  draw();
+}
+
+function worldToScreen(wx, wy) { return { x: wx * zoom + panX, y: wy * zoom + panY }; }
+function screenToWorld(sx, sy) { return { x: (sx - panX) / zoom, y: (sy - panY) / zoom }; }
+
+function snap(v) {
+  return document.getElementById('snapGrid').checked ? Math.round(v / gridSize) * gridSize : Math.round(v);
+}
+
+// ============================================================
+// DRAWING
+// ============================================================
+function draw() {
+  const r = canvasArea.getBoundingClientRect();
+  canvas.width = r.width;
+  canvas.height = r.height;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Level background
+  const tl = worldToScreen(0, 0);
+  const br = worldToScreen(level.width, level.height);
+  ctx.fillStyle = '#141428';
+  ctx.fillRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= level.width; x += gridSize) {
+    const sx = Math.round(x * zoom + panX) + 0.5;
+    ctx.beginPath(); ctx.moveTo(sx, tl.y); ctx.lineTo(sx, br.y); ctx.stroke();
+  }
+  for (let y = 0; y <= level.height; y += gridSize) {
+    const sy = Math.round(y * zoom + panY) + 0.5;
+    ctx.beginPath(); ctx.moveTo(tl.x, sy); ctx.lineTo(br.x, sy); ctx.stroke();
+  }
+
+  // Level border
+  ctx.strokeStyle = '#7c3aed';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+
+  // Tilemap
+  if (level.tilemap && tilesetImage) {
+    const tm = level.tilemap;
+    const ts = tm.tileSize;
+    const screenTS = ts * zoom;
+    // Only draw tiles visible on screen
+    const topLeft = screenToWorld(0, 0);
+    const botRight = screenToWorld(canvas.width, canvas.height);
+    const startCol = Math.max(0, Math.floor(topLeft.x / ts));
+    const endCol = Math.min(tm.gridW, Math.ceil(botRight.x / ts));
+    const startRow = Math.max(0, Math.floor(topLeft.y / ts));
+    const endRow = Math.min(tm.gridH, Math.ceil(botRight.y / ts));
+    ctx.imageSmoothingEnabled = false;
+    for (let row = startRow; row < endRow; row++) {
+      for (let col = startCol; col < endCol; col++) {
+        const idx = row * tm.gridW + col;
+        const tileId = tm.tiles[idx];
+        if (tileId < 0) continue;
+        const srcCol = tileId % tilesetCols;
+        const srcRow = Math.floor(tileId / tilesetCols);
+        const sx = srcCol * ts, sy = srcRow * ts;
+        const dest = worldToScreen(col * ts, row * ts);
+        ctx.drawImage(tilesetImage, sx, sy, ts, ts, dest.x, dest.y, screenTS, screenTS);
+        // Solid overlay — use custom collision rect if defined
+        if (tm.solid[idx]) {
+          ctx.fillStyle = 'rgba(255,0,0,0.12)';
+          const cr = tileCollisionRects[tileId];
+          if (cr) {
+            const crScale = zoom;
+            ctx.fillRect(dest.x + cr.x * crScale, dest.y + cr.y * crScale, cr.w * crScale, cr.h * crScale);
+          } else {
+            ctx.fillRect(dest.x, dest.y, screenTS, screenTS);
+          }
+        }
+      }
+    }
+    ctx.imageSmoothingEnabled = true;
+  }
+
+  // Entities
+  level.entities.forEach((e, i) => {
+    const s = worldToScreen(e.x, e.y);
+    const w = e.w * zoom, h = e.h * zoom;
+    ctx.fillStyle = `rgb(${e.color[0]},${e.color[1]},${e.color[2]})`;
+    ctx.fillRect(s.x, s.y, w, h);
+
+    // Platform indicator (dashed top line)
+    if (e.type === 'platform') {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x + w, s.y); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Selection highlight
+    if (i === selectedIdx) {
+      ctx.strokeStyle = '#7c3aed';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(s.x - 1, s.y - 1, w + 2, h + 2);
+      // Resize handles
+      const hs = 6;
+      ctx.fillStyle = '#7c3aed';
+      [[s.x, s.y], [s.x + w, s.y], [s.x, s.y + h], [s.x + w, s.y + h],
+       [s.x + w/2, s.y], [s.x + w/2, s.y + h], [s.x, s.y + h/2], [s.x + w, s.y + h/2]
+      ].forEach(([hx, hy]) => {
+        ctx.fillRect(hx - hs/2, hy - hs/2, hs, hs);
+      });
+    }
+
+    // Label
+    if (zoom >= 0.5) {
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.font = `${Math.max(9, 11 * zoom)}px sans-serif`;
+      ctx.fillText(e.type === 'platform' ? 'P' : 'S', s.x + 3, s.y + h - 3);
+    }
+  });
+
+  // Ghost rect while creating
+  if (ghostRect) {
+    const s = worldToScreen(ghostRect.x, ghostRect.y);
+    ctx.fillStyle = ghostRect.type === 'solid' ? 'rgba(45,120,50,0.4)'
+      : ghostRect.type === 'tile' ? 'rgba(124,58,237,0.3)'
+      : ghostRect.type === 'erase' ? 'rgba(239,68,68,0.3)'
+      : 'rgba(80,80,100,0.4)';
+    ctx.fillRect(s.x, s.y, ghostRect.w * zoom, ghostRect.h * zoom);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(s.x, s.y, ghostRect.w * zoom, ghostRect.h * zoom);
+  }
+
+  // Spawn point
+  const sp = worldToScreen(level.spawn.x, level.spawn.y);
+  ctx.strokeStyle = '#ef4444';
+  ctx.lineWidth = 2;
+  const cs = 10 * zoom;
+  ctx.beginPath();
+  ctx.moveTo(sp.x - cs, sp.y); ctx.lineTo(sp.x + cs, sp.y);
+  ctx.moveTo(sp.x, sp.y - cs); ctx.lineTo(sp.x, sp.y + cs);
+  ctx.stroke();
+  ctx.fillStyle = '#ef4444';
+  ctx.beginPath(); ctx.arc(sp.x, sp.y, 4 * zoom, 0, Math.PI * 2); ctx.fill();
+  if (zoom >= 0.5) {
+    ctx.font = `${Math.max(9, 11 * zoom)}px sans-serif`;
+    ctx.fillText('Spawn', sp.x + 8 * zoom, sp.y - 6 * zoom);
+  }
+}
+
+// ============================================================
+// MOUSE INTERACTION
+// ============================================================
+function getHandle(e, sx, sy) {
+  const s = worldToScreen(e.x, e.y);
+  const w = e.w * zoom, h = e.h * zoom;
+  const t = 8;
+  const onL = Math.abs(sx - s.x) < t, onR = Math.abs(sx - (s.x + w)) < t;
+  const onT = Math.abs(sy - s.y) < t, onB = Math.abs(sy - (s.y + h)) < t;
+  const inX = sx >= s.x - t && sx <= s.x + w + t;
+  const inY = sy >= s.y - t && sy <= s.y + h + t;
+  if (onT && onL) return 'tl'; if (onT && onR) return 'tr';
+  if (onB && onL) return 'bl'; if (onB && onR) return 'br';
+  if (onT && inX) return 't'; if (onB && inX) return 'b';
+  if (onL && inY) return 'l'; if (onR && inY) return 'r';
+  if (sx >= s.x && sx <= s.x + w && sy >= s.y && sy <= s.y + h) return 'move';
+  return null;
+}
+
+function entityAt(sx, sy) {
+  const w = screenToWorld(sx, sy);
+  for (let i = level.entities.length - 1; i >= 0; i--) {
+    const e = level.entities[i];
+    if (w.x >= e.x && w.x <= e.x + e.w && w.y >= e.y && w.y <= e.y + e.h) return i;
+  }
+  return -1;
+}
+
+canvas.addEventListener('mousedown', e => {
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+  const w = screenToWorld(sx, sy);
+
+  // Middle click pan
+  if (e.button === 1) {
+    isDragging = true; dragAction = 'pan';
+    dragStart = { x: e.clientX - panX, y: e.clientY - panY };
+    canvasArea.style.cursor = 'grabbing';
+    return;
+  }
+  // Right click for tile erasing
+  if (e.button === 2 && tool === 'tilerect' && level.tilemap) {
+    const tm = level.tilemap;
+    isDragging = true; dragAction = 'tilerect'; tileErasing = true;
+    dragStart = { x: Math.floor(w.x / tm.tileSize) * tm.tileSize, y: Math.floor(w.y / tm.tileSize) * tm.tileSize };
+    return;
+  }
+  if (e.button === 2 && tool === 'fill' && level.tilemap) {
+    e.preventDefault();
+    pushUndo();
+    floodFill(w.x, w.y, true);
+    draw(); autoSave();
+    return;
+  }
+  if (e.button === 2 && tool === 'tile' && level.tilemap) {
+    e.preventDefault();
+    isTilePainting = true; tileErasing = true;
+    pushUndo();
+    paintTileAt(w.x, w.y, true);
+    return;
+  }
+  if (e.button !== 0) return;
+
+  if (tool === 'eyedrop') {
+    if (!level.tilemap) return;
+    const tm = level.tilemap;
+    const col = Math.floor(w.x / tm.tileSize);
+    const row = Math.floor(w.y / tm.tileSize);
+    if (col >= 0 && col < tm.gridW && row >= 0 && row < tm.gridH) {
+      const t = tm.tiles[row * tm.gridW + col];
+      if (t >= 0) {
+        const tc = t % tilesetCols, tr = Math.floor(t / tilesetCols);
+        tileSelection = { col: tc, row: tr, w: 1, h: 1 };
+        selectedTile = t;
+        document.getElementById('selectedTileNum').textContent = '#' + t;
+        renderTilesetPalette();
+        drawCollisionEditor();
+        toast('Picked tile #' + t);
+        setTool('tile');
+      } else {
+        toast('Empty tile');
+      }
+    }
+    return;
+  }
+  if (tool === 'fill') {
+    if (!level.tilemap || !tilesetImage) { toast('Load a tileset first'); return; }
+    pushUndo();
+    floodFill(w.x, w.y);
+    draw(); autoSave();
+    return;
+  }
+  if (tool === 'tilerect') {
+    if (!level.tilemap || !tilesetImage) { toast('Load a tileset first'); return; }
+    const tm = level.tilemap;
+    isDragging = true; dragAction = 'tilerect';
+    tileErasing = e.button === 2;
+    dragStart = { x: Math.floor(w.x / tm.tileSize) * tm.tileSize, y: Math.floor(w.y / tm.tileSize) * tm.tileSize };
+    return;
+  }
+  if (tool === 'tile') {
+    if (!level.tilemap || !tilesetImage) { toast('Load a tileset first'); return; }
+    isTilePainting = true; tileErasing = false;
+    pushUndo();
+    paintTileAt(w.x, w.y, false);
+    return;
+  }
+
+  if (tool === 'select') {
+    // Check resize handles on selected entity first
+    if (selectedIdx >= 0) {
+      const h = getHandle(level.entities[selectedIdx], sx, sy);
+      if (h && h !== 'move') {
+        pushUndo();
+        isDragging = true; dragAction = 'resize'; resizeHandle = h;
+        dragStart = { x: snap(w.x), y: snap(w.y) };
+        dragOffset = { ...level.entities[selectedIdx] };
+        return;
+      }
+    }
+    // Click on any entity — select and start dragging immediately
+    const idx = entityAt(sx, sy);
+    if (idx >= 0) {
+      selectedIdx = idx;
+      pushUndo();
+      isDragging = true; dragAction = 'move';
+      dragOffset = { x: w.x - level.entities[idx].x, y: w.y - level.entities[idx].y };
+    } else {
+      selectedIdx = -1;
+    }
+    updateProps(); renderEntityList(); draw();
+  }
+  else if (tool === 'solid' || tool === 'platform') {
+    pushUndo();
+    isDragging = true; dragAction = 'create';
+    dragStart = { x: snap(w.x), y: snap(w.y) };
+  }
+  else if (tool === 'spawn') {
+    pushUndo();
+    level.spawn = { x: snap(w.x), y: snap(w.y) };
+    draw(); autoSave();
+  }
+  else if (tool === 'delete') {
+    const idx = entityAt(sx, sy);
+    if (idx >= 0) { pushUndo(); level.entities.splice(idx, 1); if (selectedIdx === idx) selectedIdx = -1; renderEntityList(); draw(); autoSave(); }
+  }
+});
+
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+  const w = screenToWorld(sx, sy);
+  document.getElementById('cursorInfo').textContent = `(${Math.round(w.x)}, ${Math.round(w.y)})`;
+
+  // Tile painting drag
+  if (isTilePainting && level.tilemap) {
+    paintTileAt(w.x, w.y, tileErasing);
+    return;
+  }
+
+  if (isDragging && dragAction === 'pan') {
+    panX = e.clientX - dragStart.x;
+    panY = e.clientY - dragStart.y;
+    draw(); return;
+  }
+
+  if (isDragging && dragAction === 'create') {
+    const x1 = Math.min(dragStart.x, snap(w.x));
+    const y1 = Math.min(dragStart.y, snap(w.y));
+    const x2 = Math.max(dragStart.x, snap(w.x));
+    const y2 = Math.max(dragStart.y, snap(w.y));
+    ghostRect = { x: x1, y: y1, w: Math.max(4, x2 - x1), h: Math.max(4, y2 - y1), type: tool };
+    draw(); return;
+  }
+
+  if (isDragging && dragAction === 'tilerect' && level.tilemap) {
+    const tm = level.tilemap;
+    const ts = tm.tileSize;
+    const cx = Math.floor(w.x / ts) * ts, cy = Math.floor(w.y / ts) * ts;
+    const x1 = Math.min(dragStart.x, cx), y1 = Math.min(dragStart.y, cy);
+    const x2 = Math.max(dragStart.x, cx) + ts, y2 = Math.max(dragStart.y, cy) + ts;
+    ghostRect = { x: x1, y: y1, w: x2 - x1, h: y2 - y1, type: tileErasing ? 'erase' : 'tile' };
+    draw(); return;
+  }
+
+  if (isDragging && dragAction === 'move' && selectedIdx >= 0) {
+    level.entities[selectedIdx].x = snap(w.x - dragOffset.x);
+    level.entities[selectedIdx].y = snap(w.y - dragOffset.y);
+    updateProps(); draw(); return;
+  }
+
+  if (isDragging && dragAction === 'resize' && selectedIdx >= 0) {
+    const ent = level.entities[selectedIdx];
+    const orig = dragOffset;
+    const wx = snap(w.x), wy = snap(w.y);
+    if (resizeHandle.includes('l')) { ent.x = Math.min(wx, orig.x + orig.w - 4); ent.w = orig.x + orig.w - ent.x; }
+    if (resizeHandle.includes('r')) { ent.w = Math.max(4, wx - ent.x); }
+    if (resizeHandle.includes('t')) { ent.y = Math.min(wy, orig.y + orig.h - 4); ent.h = orig.y + orig.h - ent.y; }
+    if (resizeHandle.includes('b')) { ent.h = Math.max(4, wy - ent.y); }
+    updateProps(); draw(); return;
+  }
+
+  // Cursor feedback
+  if (tool === 'select' && selectedIdx >= 0) {
+    const h = getHandle(level.entities[selectedIdx], sx, sy);
+    const cursors = { tl:'nwse-resize', tr:'nesw-resize', bl:'nesw-resize', br:'nwse-resize',
+                      t:'ns-resize', b:'ns-resize', l:'ew-resize', r:'ew-resize', move:'move' };
+    canvasArea.style.cursor = h ? (cursors[h] || 'default') : 'default';
+  }
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (isTilePainting) { isTilePainting = false; tileErasing = false; autoSave(); draw(); return; }
+  if (isDragging && dragAction === 'tilerect' && ghostRect && level.tilemap) {
+    pushUndo();
+    const tm = level.tilemap;
+    const ts = tm.tileSize;
+    const c1 = Math.max(0, Math.floor(ghostRect.x / ts));
+    const r1 = Math.max(0, Math.floor(ghostRect.y / ts));
+    const c2 = Math.min(tm.gridW - 1, Math.floor((ghostRect.x + ghostRect.w - 1) / ts));
+    const r2 = Math.min(tm.gridH - 1, Math.floor((ghostRect.y + ghostRect.h - 1) / ts));
+    const solid = document.getElementById('paintSolid').checked;
+    for (let r = r1; r <= r2; r++) {
+      for (let c = c1; c <= c2; c++) {
+        const idx = r * tm.gridW + c;
+        if (tileErasing) { tm.tiles[idx] = -1; tm.solid[idx] = false; }
+        else { tm.tiles[idx] = selectedTile; tm.solid[idx] = solid; }
+      }
+    }
+    isDragging = false; dragAction = null; ghostRect = null; tileErasing = false;
+    draw(); autoSave(); return;
+  }
+  if (isDragging && dragAction === 'create' && ghostRect) {
+    const colorHex = tool === 'solid' ? document.getElementById('solidColor').value : document.getElementById('platColor').value;
+    const c = hexToRgb(colorHex);
+    level.entities.push({
+      type: tool, x: ghostRect.x, y: ghostRect.y,
+      w: ghostRect.w, h: ghostRect.h, color: [c.r, c.g, c.b]
+    });
+    selectedIdx = level.entities.length - 1;
+    renderEntityList(); updateProps();
+  }
+  isDragging = false; dragAction = null; ghostRect = null;
+  if (e.button === 1) canvasArea.style.cursor = tool === 'select' ? 'default' : 'crosshair';
+  draw(); autoSave();
+});
+
+// Prevent context menu on canvas for tile erase right-click
+canvas.addEventListener('contextmenu', e => { if (tool === 'tile' || tool === 'fill' || tool === 'tilerect') e.preventDefault(); });
+
+// Scroll to zoom
+canvasArea.addEventListener('wheel', e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const oldZoom = zoom;
+  zoom = Math.max(0.25, Math.min(4, zoom + (e.deltaY < 0 ? 0.15 : -0.15)));
+  // Zoom toward cursor
+  panX = mx - (mx - panX) * (zoom / oldZoom);
+  panY = my - (my - panY) * (zoom / oldZoom);
+  document.getElementById('zoomLevel').textContent = zoom.toFixed(2) + 'x';
+  draw();
+}, { passive: false });
+
+// ============================================================
+// PROPERTIES
+// ============================================================
+function updateProps() {
+  const sec = document.getElementById('propsSection');
+  if (selectedIdx < 0 || selectedIdx >= level.entities.length) { sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+  const e = level.entities[selectedIdx];
+  document.getElementById('propX').value = Math.round(e.x);
+  document.getElementById('propY').value = Math.round(e.y);
+  document.getElementById('propW').value = Math.round(e.w);
+  document.getElementById('propH').value = Math.round(e.h);
+  document.getElementById('propColor').value = rgbToHex(e.color[0], e.color[1], e.color[2]);
+  document.getElementById('propType').value = e.type;
+}
+
+function updateProp() {
+  if (selectedIdx < 0) return;
+  pushUndo();
+  const e = level.entities[selectedIdx];
+  e.x = parseInt(document.getElementById('propX').value) || 0;
+  e.y = parseInt(document.getElementById('propY').value) || 0;
+  e.w = Math.max(4, parseInt(document.getElementById('propW').value) || 4);
+  e.h = Math.max(4, parseInt(document.getElementById('propH').value) || 4);
+  e.type = document.getElementById('propType').value;
+  const c = hexToRgb(document.getElementById('propColor').value);
+  e.color = [c.r, c.g, c.b];
+  renderEntityList(); draw(); autoSave();
+}
+
+function deleteSelected() {
+  if (selectedIdx < 0) return;
+  pushUndo();
+  level.entities.splice(selectedIdx, 1);
+  selectedIdx = -1;
+  updateProps(); renderEntityList(); draw(); autoSave();
+}
+
+function updateLevelSize() {
+  level.width = Math.max(100, parseInt(document.getElementById('levelW').value) || 2400);
+  level.height = Math.max(100, parseInt(document.getElementById('levelH').value) || 480);
+  // Resize tilemap grid if active
+  if (level.tilemap) {
+    initTilemap(level.tilemap.tileSize);
+  }
+  draw(); autoSave();
+}
+
+// ============================================================
+// ENTITY LIST
+// ============================================================
+function renderEntityList() {
+  const list = document.getElementById('entityList');
+  document.getElementById('entityCount').textContent = level.entities.length;
+  list.innerHTML = '';
+  level.entities.forEach((e, i) => {
+    const div = document.createElement('div');
+    div.className = 'entity-item' + (i === selectedIdx ? ' selected' : '');
+    div.innerHTML = `
+      <div class="swatch" style="background:rgb(${e.color.join(',')})"></div>
+      <span class="entity-info">${e.type} ${Math.round(e.w)}x${Math.round(e.h)}</span>
+      <button class="delete-btn">&times;</button>
+    `;
+    div.onclick = () => { selectedIdx = i; updateProps(); renderEntityList(); draw(); };
+    div.querySelector('.delete-btn').onclick = ev => {
+      ev.stopPropagation(); pushUndo();
+      level.entities.splice(i, 1);
+      if (selectedIdx === i) selectedIdx = -1;
+      else if (selectedIdx > i) selectedIdx--;
+      updateProps(); renderEntityList(); draw(); autoSave();
+    };
+    list.appendChild(div);
+  });
+}
+
+// ============================================================
+// EXPORT / IMPORT
+// ============================================================
+function exportJSON() {
+  const name = document.getElementById('levelName').value.trim() || 'level1';
+  const data = {
+    width: level.width,
+    height: level.height,
+    spawn: level.spawn,
+    entities: level.entities.map(e => ({
+      type: e.type,
+      x: Math.round(e.x), y: Math.round(e.y),
+      w: Math.round(e.w), h: Math.round(e.h),
+      color: e.color
+    }))
+  };
+  // Include tilemap if it has any painted tiles
+  if (level.tilemap && level.tilemap.tiles.some(t => t >= 0)) {
+    data.tilemap = {
+      image: tilesetFilename || 'tileset.png',
+      tileSize: level.tilemap.tileSize,
+      width: level.tilemap.gridW,
+      height: level.tilemap.gridH,
+      tiles: level.tilemap.tiles,
+      solid: level.tilemap.solid.map(s => s ? 1 : 0)
+    };
+    // Include custom collision rects (non-full-tile only)
+    const crKeys = Object.keys(tileCollisionRects);
+    if (crKeys.length > 0) {
+      const collisionRects = {};
+      for (const k of crKeys) {
+        collisionRects[k] = { ...tileCollisionRects[k] };
+      }
+      data.tilemap.collisionRects = collisionRects;
+    }
+  }
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name + '.json'; a.click();
+  URL.revokeObjectURL(url);
+  toast('Exported ' + name + '.json');
+}
+
+document.getElementById('importInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      pushUndo();
+      level.width = data.width || 2400;
+      level.height = data.height || 480;
+      level.spawn = data.spawn || { x: 100, y: 250 };
+      level.entities = (data.entities || []).map(e => ({
+        type: e.type || 'solid',
+        x: e.x || 0, y: e.y || 0,
+        w: e.w || 50, h: e.h || 50,
+        color: e.color || [80, 80, 80]
+      }));
+      // Import tilemap data
+      tileCollisionRects = {};
+      if (data.tilemap) {
+        level.tilemap = {
+          tileSize: data.tilemap.tileSize || 16,
+          gridW: data.tilemap.width,
+          gridH: data.tilemap.height,
+          tiles: data.tilemap.tiles.slice(),
+          solid: data.tilemap.solid.map(s => !!s)
+        };
+        tilesetFilename = data.tilemap.image || '';
+        document.getElementById('tileSize').value = level.tilemap.tileSize;
+        // Import collision rects
+        if (data.tilemap.collisionRects) {
+          for (const k of Object.keys(data.tilemap.collisionRects)) {
+            const r = data.tilemap.collisionRects[k];
+            tileCollisionRects[parseInt(k)] = { x: r.x, y: r.y, w: r.w, h: r.h };
+          }
+        }
+        toast('Tilemap loaded. Load tileset image: ' + tilesetFilename);
+      } else {
+        level.tilemap = null;
+        tilesetImage = null; tilesetFilename = '';
+        tilesetCols = 0; tilesetRows = 0;
+        document.getElementById('tilesetPaletteWrap').style.display = 'none';
+        document.getElementById('tilesetInfo').style.display = 'none';
+        document.getElementById('paletteZoomRow').style.display = 'none';
+      }
+      showCollisionEditor();
+      document.getElementById('levelW').value = level.width;
+      document.getElementById('levelH').value = level.height;
+      selectedIdx = -1;
+      document.getElementById('levelName').value = file.name.replace('.json', '');
+      renderEntityList(); updateProps(); fitToView();
+      toast('Imported ' + file.name);
+      autoSave();
+    } catch (err) { toast('Invalid JSON'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+function newLevel() {
+  if ((level.entities.length > 0 || (level.tilemap && level.tilemap.tiles.some(t => t >= 0))) && !confirm('Start a new level?')) return;
+  level = { width: 2400, height: 480, spawn: { x: 100, y: 250 }, entities: [], tilemap: null };
+  selectedIdx = -1;
+  tilesetImage = null; tilesetFilename = ''; tilesetCols = 0; tilesetRows = 0; selectedTile = 0;
+  tileCollisionRects = {};
+  document.getElementById('levelW').value = 2400;
+  document.getElementById('levelH').value = 480;
+  document.getElementById('levelName').value = 'level1';
+  document.getElementById('tilesetPaletteWrap').style.display = 'none';
+  document.getElementById('tilesetInfo').style.display = 'none';
+  document.getElementById('paletteZoomRow').style.display = 'none';
+  showCollisionEditor();
+  undoStack.length = 0; redoStack.length = 0;
+  renderEntityList(); updateProps(); fitToView();
+  localStorage.removeItem('vengine-level-editor');
+  toast('New level');
+}
+
+// ============================================================
+// UNDO / REDO
+// ============================================================
+function pushUndo() {
+  undoStack.push(JSON.parse(JSON.stringify({ level: level, selectedIdx, tileCollisionRects })));
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  redoStack.length = 0;
+}
+function undo() {
+  if (!undoStack.length) return;
+  redoStack.push(JSON.parse(JSON.stringify({ level, selectedIdx, tileCollisionRects })));
+  const s = undoStack.pop();
+  level = s.level; selectedIdx = s.selectedIdx;
+  tileCollisionRects = s.tileCollisionRects || {};
+  document.getElementById('levelW').value = level.width;
+  document.getElementById('levelH').value = level.height;
+  if (level.tilemap) document.getElementById('tileSize').value = level.tilemap.tileSize;
+  renderEntityList(); updateProps(); drawCollisionEditor(); draw(); autoSave();
+}
+function redo() {
+  if (!redoStack.length) return;
+  undoStack.push(JSON.parse(JSON.stringify({ level, selectedIdx, tileCollisionRects })));
+  const s = redoStack.pop();
+  level = s.level; selectedIdx = s.selectedIdx;
+  tileCollisionRects = s.tileCollisionRects || {};
+  document.getElementById('levelW').value = level.width;
+  document.getElementById('levelH').value = level.height;
+  if (level.tilemap) document.getElementById('tileSize').value = level.tilemap.tileSize;
+  renderEntityList(); updateProps(); drawCollisionEditor(); draw(); autoSave();
+}
+
+// ============================================================
+// AUTO-SAVE
+// ============================================================
+let saveTimeout = null;
+function autoSave() {
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => {
+    try {
+      localStorage.setItem('vengine-level-editor', JSON.stringify({
+        level, selectedIdx,
+        levelName: document.getElementById('levelName').value,
+        tilesetFilename: tilesetFilename,
+        tileCollisionRects: tileCollisionRects
+      }));
+    } catch (e) {}
+  }, 500);
+}
+function autoRestore() {
+  try {
+    const s = localStorage.getItem('vengine-level-editor');
+    if (!s) return;
+    const d = JSON.parse(s);
+    level = d.level;
+    if (!level.tilemap) level.tilemap = null; // ensure field exists
+    selectedIdx = d.selectedIdx ?? -1;
+    tilesetFilename = d.tilesetFilename || '';
+    // Restore collision rects
+    tileCollisionRects = d.tileCollisionRects || {};
+    document.getElementById('levelW').value = level.width;
+    document.getElementById('levelH').value = level.height;
+    if (d.levelName) document.getElementById('levelName').value = d.levelName;
+    if (level.tilemap) {
+      document.getElementById('tileSize').value = level.tilemap.tileSize;
+      if (tilesetFilename) {
+        document.getElementById('tilesetInfo').style.display = 'block';
+        document.getElementById('selectedTileNum').textContent = selectedTile;
+      }
+    }
+    renderEntityList(); updateProps();
+  } catch (e) {}
+}
+
+// ============================================================
+// KEYBOARD
+// ============================================================
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
+  if (e.ctrlKey && e.key === 'y') { e.preventDefault(); redo(); }
+  if (e.key === 'Delete' || e.key === 'Backspace') deleteSelected();
+  if (e.key === '1') setTool('select');
+  if (e.key === '2') setTool('solid');
+  if (e.key === '3') setTool('platform');
+  if (e.key === '4') setTool('spawn');
+  if (e.key === '5') setTool('delete');
+  if (e.key === '6') setTool('tile');
+  if (e.key === '7') setTool('fill');
+  if (e.key === '8') setTool('tilerect');
+  if (e.key === '9') setTool('eyedrop');
+  // Duplicate selected
+  if (e.ctrlKey && e.key === 'd' && selectedIdx >= 0) {
+    e.preventDefault(); pushUndo();
+    const src = level.entities[selectedIdx];
+    level.entities.push({ ...src, x: src.x + 20, y: src.y + 20, color: [...src.color] });
+    selectedIdx = level.entities.length - 1;
+    renderEntityList(); updateProps(); draw(); autoSave();
+  }
+});
+
+// ============================================================
+// TILEMAP
+// ============================================================
+function initTilemap(ts) {
+  const gridW = Math.ceil(level.width / ts);
+  const gridH = Math.ceil(level.height / ts);
+  if (level.tilemap && level.tilemap.tileSize === ts && level.tilemap.gridW === gridW && level.tilemap.gridH === gridH) return;
+  // Preserve existing tile data when resizing
+  const oldTm = level.tilemap;
+  const tiles = new Array(gridW * gridH).fill(-1);
+  const solid = new Array(gridW * gridH).fill(false);
+  if (oldTm && oldTm.tileSize === ts) {
+    const copyW = Math.min(oldTm.gridW, gridW);
+    const copyH = Math.min(oldTm.gridH, gridH);
+    for (let r = 0; r < copyH; r++) {
+      for (let c = 0; c < copyW; c++) {
+        tiles[r * gridW + c] = oldTm.tiles[r * oldTm.gridW + c];
+        solid[r * gridW + c] = oldTm.solid[r * oldTm.gridW + c];
+      }
+    }
+  }
+  level.tilemap = { tileSize: ts, gridW, gridH, tiles, solid };
+}
+
+function updateTileSize() {
+  const ts = Math.max(4, parseInt(document.getElementById('tileSize').value) || 16);
+  document.getElementById('tileSize').value = ts;
+  // Sync grid size
+  gridSize = ts;
+  document.getElementById('gridSize').value = ts;
+  // Clear collision rects — old pixel coordinates are invalid for new tile size
+  tileCollisionRects = {};
+  if (tilesetImage) {
+    initTilemap(ts);
+    tilesetCols = Math.floor(tilesetImage.naturalWidth / ts);
+    tilesetRows = Math.floor(tilesetImage.naturalHeight / ts);
+    selectedTile = 0;
+    renderTilesetPalette();
+    drawCollisionEditor();
+  }
+  draw(); autoSave();
+}
+
+function loadTileset(img, filename) {
+  tilesetImage = img;
+  tilesetFilename = filename;
+  // Auto-detect tile size from image transparency patterns
+  const detected = autoDetectTileSize(img);
+  document.getElementById('tileSize').value = detected;
+  const ts = detected;
+  tilesetCols = Math.floor(img.naturalWidth / ts);
+  tilesetRows = Math.floor(img.naturalHeight / ts);
+  if (tilesetCols < 1 || tilesetRows < 1) { toast('Tileset too small for tile size'); return; }
+  initTilemap(ts);
+  selectedTile = 0;
+  document.getElementById('tilesetPaletteWrap').style.display = 'block';
+  document.getElementById('tilesetInfo').style.display = 'block';
+  document.getElementById('paletteZoomRow').style.display = 'flex';
+  document.getElementById('selectedTileNum').textContent = '0';
+  renderTilesetPalette();
+  showCollisionEditor();
+  drawCollisionEditor();
+  draw();
+  toast('Detected ' + ts + 'px tiles — ' + tilesetCols + 'x' + tilesetRows + ' (' + filename + ')');
+  autoSave();
+}
+
+function redetectTileSize() {
+  if (!tilesetImage) { toast('Load a tileset first'); return; }
+  const ts = autoDetectTileSize(tilesetImage);
+  document.getElementById('tileSize').value = ts;
+  updateTileSize();
+  toast('Detected ' + ts + 'px tiles');
+}
+
+function autoDetectTileSize(img) {
+  const w = img.naturalWidth, h = img.naturalHeight;
+
+  // Read pixel alpha data
+  const tc = document.createElement('canvas');
+  tc.width = w; tc.height = h;
+  const tctx = tc.getContext('2d');
+  tctx.drawImage(img, 0, 0);
+  const px = tctx.getImageData(0, 0, w, h).data;
+
+  // Column alpha density (0 = fully transparent, 1 = fully opaque)
+  const colDensity = new Float32Array(w);
+  for (let x = 0; x < w; x++) {
+    let sum = 0;
+    for (let y = 0; y < h; y++) sum += px[(y * w + x) * 4 + 3];
+    colDensity[x] = sum / (h * 255);
+  }
+  // Row alpha density
+  const rowDensity = new Float32Array(h);
+  for (let y = 0; y < h; y++) {
+    let sum = 0;
+    for (let x = 0; x < w; x++) sum += px[(y * w + x) * 4 + 3];
+    rowDensity[y] = sum / (w * 255);
+  }
+
+  // Candidates: sizes that divide both dimensions evenly
+  const candidates = [];
+  for (let size = 8; size <= Math.min(w, h, 256); size++) {
+    if (w % size === 0 && h % size === 0) candidates.push(size);
+  }
+  if (candidates.length === 0) return 16;
+
+  let bestSize = 16;
+  let bestScore = -Infinity;
+
+  for (const size of candidates) {
+    const colCount = w / size, rowCount = h / size;
+    if (colCount > 100 || rowCount > 100) continue;
+    let score = 0;
+
+    // 1. Column boundary alignment (boundaries should fall on low-alpha columns)
+    if (colCount > 1) {
+      let bs = 0;
+      for (let i = 1; i < colCount; i++) {
+        const b = i * size;
+        const range = Math.max(1, Math.min(3, Math.floor(size * 0.05)));
+        let minD = 1;
+        for (let d = -range; d <= range; d++) {
+          const idx = b + d;
+          if (idx >= 0 && idx < w) minD = Math.min(minD, colDensity[idx]);
+        }
+        bs += (1 - minD);
+      }
+      score += (bs / (colCount - 1)) * 40;
+    }
+
+    // 2. Row boundary alignment
+    if (rowCount > 1) {
+      let bs = 0;
+      for (let i = 1; i < rowCount; i++) {
+        const b = i * size;
+        const range = Math.max(1, Math.min(3, Math.floor(size * 0.05)));
+        let minD = 1;
+        for (let d = -range; d <= range; d++) {
+          const idx = b + d;
+          if (idx >= 0 && idx < h) minD = Math.min(minD, rowDensity[idx]);
+        }
+        bs += (1 - minD);
+      }
+      score += (bs / (rowCount - 1)) * 40;
+    }
+
+    // 3. Prefer common power-of-2 tile sizes
+    if ([16, 32, 64].includes(size)) score += 15;
+    else if ([8, 48, 128].includes(size)) score += 8;
+
+    // 4. Reasonable tile count
+    const total = colCount * rowCount;
+    if (total >= 4 && total <= 500) score += 10;
+    else if (total > 500) score -= 5;
+
+    // 5. Content: tile centers should have visible pixels
+    let contentScore = 0;
+    const sampleCount = Math.min(colCount * rowCount, 50);
+    for (let i = 0; i < sampleCount; i++) {
+      const c = i % colCount, r = Math.floor(i / colCount);
+      const cx = c * size + Math.floor(size / 2);
+      const cy = r * size + Math.floor(size / 2);
+      if (cx < w) contentScore += colDensity[cx];
+      if (cy < h) contentScore += rowDensity[cy];
+    }
+    score += (contentScore / (sampleCount * 2)) * 20;
+
+    if (score > bestScore) { bestScore = score; bestSize = size; }
+  }
+
+  return bestSize;
+}
+
+function renderTilesetPalette() {
+  const paletteCanvas = document.getElementById('tilesetPalette');
+  const pctx = paletteCanvas.getContext('2d');
+  if (!tilesetImage || tilesetCols < 1 || tilesetRows < 1) return;
+  const ts = level.tilemap ? level.tilemap.tileSize : 16;
+  const paletteZoom = parseInt(document.getElementById('paletteZoom').value) || 2;
+  document.getElementById('paletteZoomLabel').textContent = paletteZoom + 'x';
+  const drawTS = ts * paletteZoom;
+  paletteCanvas.width = tilesetCols * drawTS;
+  paletteCanvas.height = tilesetRows * drawTS;
+  pctx.imageSmoothingEnabled = false;
+  // Draw checkerboard background
+  for (let r = 0; r < tilesetRows; r++) {
+    for (let c = 0; c < tilesetCols; c++) {
+      const cx = c * drawTS, cy = r * drawTS;
+      pctx.fillStyle = (c + r) % 2 === 0 ? '#1a1a2e' : '#222240';
+      pctx.fillRect(cx, cy, drawTS, drawTS);
+    }
+  }
+  // Draw tileset
+  pctx.drawImage(tilesetImage, 0, 0, tilesetCols * ts, tilesetRows * ts, 0, 0, paletteCanvas.width, paletteCanvas.height);
+  // Grid lines
+  pctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  pctx.lineWidth = 1;
+  for (let c = 0; c <= tilesetCols; c++) {
+    const x = c * drawTS + 0.5;
+    pctx.beginPath(); pctx.moveTo(x, 0); pctx.lineTo(x, paletteCanvas.height); pctx.stroke();
+  }
+  for (let r = 0; r <= tilesetRows; r++) {
+    const y = r * drawTS + 0.5;
+    pctx.beginPath(); pctx.moveTo(0, y); pctx.lineTo(paletteCanvas.width, y); pctx.stroke();
+  }
+  // Selection highlight (supports multi-tile)
+  const sel = tileSelection;
+  pctx.strokeStyle = '#7c3aed';
+  pctx.lineWidth = 3;
+  pctx.strokeRect(sel.col * drawTS + 1, sel.row * drawTS + 1, sel.w * drawTS - 2, sel.h * drawTS - 2);
+  // Inner glow
+  pctx.strokeStyle = 'rgba(124,58,237,0.4)';
+  pctx.lineWidth = 1;
+  pctx.strokeRect(sel.col * drawTS + 4, sel.row * drawTS + 4, sel.w * drawTS - 8, sel.h * drawTS - 8);
+}
+
+// Tileset palette click
+function paletteHitTest(e) {
+  const paletteCanvas = document.getElementById('tilesetPalette');
+  const rect = paletteCanvas.getBoundingClientRect();
+  const scaleX = paletteCanvas.width / rect.width;
+  const scaleY = paletteCanvas.height / rect.height;
+  const px = (e.clientX - rect.left) * scaleX;
+  const py = (e.clientY - rect.top) * scaleY;
+  const ts = level.tilemap ? level.tilemap.tileSize : 16;
+  const paletteZoom = parseInt(document.getElementById('paletteZoom').value) || 2;
+  const drawTS = ts * paletteZoom;
+  return { col: Math.floor(px / drawTS), row: Math.floor(py / drawTS) };
+}
+
+function updateTileSelection(c1, r1, c2, r2) {
+  const minC = Math.max(0, Math.min(c1, c2));
+  const minR = Math.max(0, Math.min(r1, r2));
+  const maxC = Math.min(tilesetCols - 1, Math.max(c1, c2));
+  const maxR = Math.min(tilesetRows - 1, Math.max(r1, r2));
+  tileSelection = { col: minC, row: minR, w: maxC - minC + 1, h: maxR - minR + 1 };
+  selectedTile = minR * tilesetCols + minC;
+  const info = tileSelection.w === 1 && tileSelection.h === 1
+    ? '#' + selectedTile
+    : '#' + selectedTile + ' (' + tileSelection.w + 'x' + tileSelection.h + ')';
+  document.getElementById('selectedTileNum').textContent = info;
+  drawCollisionEditor();
+}
+
+document.getElementById('tilesetPalette').addEventListener('mousedown', e => {
+  if (!tilesetImage || tilesetCols < 1) return;
+  const hit = paletteHitTest(e);
+  if (hit.col < 0 || hit.col >= tilesetCols || hit.row < 0 || hit.row >= tilesetRows) return;
+  paletteDragging = true;
+  paletteStart = hit;
+  updateTileSelection(hit.col, hit.row, hit.col, hit.row);
+  renderTilesetPalette();
+});
+
+document.addEventListener('mousemove', e => {
+  if (!paletteDragging) return;
+  const hit = paletteHitTest(e);
+  updateTileSelection(paletteStart.col, paletteStart.row, hit.col, hit.row);
+  renderTilesetPalette();
+});
+
+document.addEventListener('mouseup', e => {
+  if (paletteDragging) { paletteDragging = false; }
+});
+
+// Load tileset file
+document.getElementById('tilesetInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const img = new Image();
+  img.onload = () => { loadTileset(img, file.name); };
+  img.onerror = () => { toast('Failed to load image'); };
+  img.src = URL.createObjectURL(file);
+  e.target.value = '';
+});
+
+function paintTileAt(worldX, worldY, erasing) {
+  if (!level.tilemap) return;
+  const tm = level.tilemap;
+  const ts = tm.tileSize;
+  const baseCol = Math.floor(worldX / ts);
+  const baseRow = Math.floor(worldY / ts);
+  const solid = document.getElementById('paintSolid').checked;
+  const sel = tileSelection;
+
+  for (let dr = 0; dr < sel.h; dr++) {
+    for (let dc = 0; dc < sel.w; dc++) {
+      const col = baseCol + dc, row = baseRow + dr;
+      if (col < 0 || col >= tm.gridW || row < 0 || row >= tm.gridH) continue;
+      const idx = row * tm.gridW + col;
+      if (erasing) {
+        tm.tiles[idx] = -1;
+        tm.solid[idx] = false;
+      } else {
+        const srcTile = (sel.row + dr) * tilesetCols + (sel.col + dc);
+        tm.tiles[idx] = srcTile;
+        tm.solid[idx] = solid;
+      }
+    }
+  }
+  draw();
+}
+
+function floodFill(worldX, worldY, erasing) {
+  const tm = level.tilemap;
+  if (!tm) return;
+  const col = Math.floor(worldX / tm.tileSize);
+  const row = Math.floor(worldY / tm.tileSize);
+  if (col < 0 || col >= tm.gridW || row < 0 || row >= tm.gridH) return;
+
+  const startIdx = row * tm.gridW + col;
+  const targetTile = tm.tiles[startIdx];
+  const replaceTile = erasing ? -1 : selectedTile;
+  const solid = erasing ? false : document.getElementById('paintSolid').checked;
+
+  // Don't fill if target is already the replacement
+  if (targetTile === replaceTile) return;
+
+  // BFS flood fill
+  const visited = new Uint8Array(tm.gridW * tm.gridH);
+  const queue = [col + row * tm.gridW];
+  visited[queue[0]] = 1;
+  const gw = tm.gridW, gh = tm.gridH;
+
+  while (queue.length > 0) {
+    const idx = queue.shift();
+    const c = idx % gw, r = Math.floor(idx / gw);
+
+    tm.tiles[idx] = replaceTile;
+    tm.solid[idx] = solid;
+
+    // Check 4 neighbors
+    const neighbors = [];
+    if (c > 0) neighbors.push(idx - 1);
+    if (c < gw - 1) neighbors.push(idx + 1);
+    if (r > 0) neighbors.push(idx - gw);
+    if (r < gh - 1) neighbors.push(idx + gw);
+
+    for (const n of neighbors) {
+      if (!visited[n] && tm.tiles[n] === targetTile) {
+        visited[n] = 1;
+        queue.push(n);
+      }
+    }
+  }
+}
+
+// ============================================================
+// TILE COLLISION EDITOR
+// ============================================================
+function getCollisionRect(tileIdx) {
+  if (tileCollisionRects[tileIdx]) return { ...tileCollisionRects[tileIdx] };
+  const ts = level.tilemap ? level.tilemap.tileSize : 16;
+  return { x: 0, y: 0, w: ts, h: ts };
+}
+
+function isFullTileCollision(tileIdx) {
+  const r = tileCollisionRects[tileIdx];
+  if (!r) return true;
+  const ts = level.tilemap ? level.tilemap.tileSize : 16;
+  return r.x === 0 && r.y === 0 && r.w === ts && r.h === ts;
+}
+
+function showCollisionEditor() {
+  const sec = document.getElementById('tileCollisionSection');
+  sec.style.display = tilesetImage ? 'block' : 'none';
+}
+
+function drawCollisionEditor() {
+  const cvs = document.getElementById('collisionEditor');
+  const c = cvs.getContext('2d');
+  const ts = level.tilemap ? level.tilemap.tileSize : 16;
+  const wrapSize = 150;
+  const editorZoom = Math.floor(wrapSize / ts) || 1;
+  const drawSize = ts * editorZoom;
+  cvs.width = drawSize;
+  cvs.height = drawSize;
+  cvs.style.width = wrapSize + 'px';
+  cvs.style.height = wrapSize + 'px';
+  // Offset canvas to center in the wrapper
+  const offsetX = Math.floor((wrapSize - wrapSize) / 2);
+  const offsetY = Math.floor((wrapSize - wrapSize) / 2);
+
+  // Dark background
+  c.fillStyle = '#0a0a1a';
+  c.fillRect(0, 0, drawSize, drawSize);
+
+  // Checkerboard
+  const checkSize = editorZoom * 2;
+  for (let cy = 0; cy < drawSize; cy += checkSize) {
+    for (let cx = 0; cx < drawSize; cx += checkSize) {
+      c.fillStyle = ((cx / checkSize + cy / checkSize) % 2 === 0) ? '#1a1a2e' : '#222240';
+      c.fillRect(cx, cy, checkSize, checkSize);
+    }
+  }
+
+  // Draw the tile
+  if (tilesetImage && tilesetCols > 0) {
+    const srcCol = selectedTile % tilesetCols;
+    const srcRow = Math.floor(selectedTile / tilesetCols);
+    c.imageSmoothingEnabled = false;
+    c.drawImage(tilesetImage, srcCol * ts, srcRow * ts, ts, ts, 0, 0, drawSize, drawSize);
+  }
+
+  // Draw collision rect overlay
+  const rect = getCollisionRect(selectedTile);
+  c.fillStyle = 'rgba(0, 200, 80, 0.25)';
+  c.fillRect(rect.x * editorZoom, rect.y * editorZoom, rect.w * editorZoom, rect.h * editorZoom);
+  c.strokeStyle = 'rgba(0, 220, 80, 0.8)';
+  c.lineWidth = 2;
+  c.strokeRect(rect.x * editorZoom, rect.y * editorZoom, rect.w * editorZoom, rect.h * editorZoom);
+
+  // Draw edge handles (small squares on each edge midpoint)
+  const handleSize = 6;
+  c.fillStyle = '#00ee55';
+  const rx = rect.x * editorZoom, ry = rect.y * editorZoom;
+  const rw = rect.w * editorZoom, rh = rect.h * editorZoom;
+  // Top
+  c.fillRect(rx + rw / 2 - handleSize / 2, ry - handleSize / 2, handleSize, handleSize);
+  // Bottom
+  c.fillRect(rx + rw / 2 - handleSize / 2, ry + rh - handleSize / 2, handleSize, handleSize);
+  // Left
+  c.fillRect(rx - handleSize / 2, ry + rh / 2 - handleSize / 2, handleSize, handleSize);
+  // Right
+  c.fillRect(rx + rw - handleSize / 2, ry + rh / 2 - handleSize / 2, handleSize, handleSize);
+
+  // Update number inputs
+  document.getElementById('colRectX').value = rect.x;
+  document.getElementById('colRectY').value = rect.y;
+  document.getElementById('colRectW').value = rect.w;
+  document.getElementById('colRectH').value = rect.h;
+  document.getElementById('colRectX').max = ts;
+  document.getElementById('colRectY').max = ts;
+  document.getElementById('colRectW').max = ts;
+  document.getElementById('colRectH').max = ts;
+}
+
+function collisionEditorPixel(e) {
+  const cvs = document.getElementById('collisionEditor');
+  const br = cvs.getBoundingClientRect();
+  const ts = level.tilemap ? level.tilemap.tileSize : 16;
+  const scaleX = ts / br.width;
+  const scaleY = ts / br.height;
+  return {
+    x: Math.max(0, Math.min(ts, Math.round((e.clientX - br.left) * scaleX))),
+    y: Math.max(0, Math.min(ts, Math.round((e.clientY - br.top) * scaleY)))
+  };
+}
+
+function collisionEditorHitEdge(e) {
+  const cvs = document.getElementById('collisionEditor');
+  const br = cvs.getBoundingClientRect();
+  const ts = level.tilemap ? level.tilemap.tileSize : 16;
+  const wrapSize = br.width;
+  const editorZoom = wrapSize / ts;
+  const rect = getCollisionRect(selectedTile);
+  const mx = e.clientX - br.left, my = e.clientY - br.top;
+  const rx = rect.x * editorZoom, ry = rect.y * editorZoom;
+  const rw = rect.w * editorZoom, rh = rect.h * editorZoom;
+  const tol = 8;
+
+  // Check each edge handle
+  if (Math.abs(my - ry) < tol && mx >= rx - tol && mx <= rx + rw + tol) return 'edge-t';
+  if (Math.abs(my - (ry + rh)) < tol && mx >= rx - tol && mx <= rx + rw + tol) return 'edge-b';
+  if (Math.abs(mx - rx) < tol && my >= ry - tol && my <= ry + rh + tol) return 'edge-l';
+  if (Math.abs(mx - (rx + rw)) < tol && my >= ry - tol && my <= ry + rh + tol) return 'edge-r';
+  return null;
+}
+
+function setCollisionRectForTile(tileIdx, rect) {
+  const ts = level.tilemap ? level.tilemap.tileSize : 16;
+  // Clamp values
+  rect.x = Math.max(0, Math.min(ts, Math.round(rect.x)));
+  rect.y = Math.max(0, Math.min(ts, Math.round(rect.y)));
+  rect.w = Math.max(0, Math.min(ts - rect.x, Math.round(rect.w)));
+  rect.h = Math.max(0, Math.min(ts - rect.y, Math.round(rect.h)));
+  // If it's full tile, remove the entry (default behavior)
+  if (rect.x === 0 && rect.y === 0 && rect.w === ts && rect.h === ts) {
+    delete tileCollisionRects[tileIdx];
+  } else {
+    tileCollisionRects[tileIdx] = rect;
+  }
+  drawCollisionEditor();
+  draw();
+  autoSave();
+}
+
+function onCollisionInputChange() {
+  const ts = level.tilemap ? level.tilemap.tileSize : 16;
+  const rect = {
+    x: Math.max(0, Math.min(ts, parseInt(document.getElementById('colRectX').value) || 0)),
+    y: Math.max(0, Math.min(ts, parseInt(document.getElementById('colRectY').value) || 0)),
+    w: Math.max(0, parseInt(document.getElementById('colRectW').value) || 0),
+    h: Math.max(0, parseInt(document.getElementById('colRectH').value) || 0)
+  };
+  rect.w = Math.min(rect.w, ts - rect.x);
+  rect.h = Math.min(rect.h, ts - rect.y);
+  setCollisionRectForTile(selectedTile, rect);
+}
+
+function setCollisionPreset(preset) {
+  const ts = level.tilemap ? level.tilemap.tileSize : 16;
+  let rect;
+  switch (preset) {
+    case 'full': rect = { x: 0, y: 0, w: ts, h: ts }; break;
+    case 'none': rect = { x: 0, y: 0, w: 0, h: 0 }; break;
+    case 'halfTop': rect = { x: 0, y: 0, w: ts, h: Math.floor(ts / 2) }; break;
+    case 'halfBottom': rect = { x: 0, y: Math.floor(ts / 2), w: ts, h: ts - Math.floor(ts / 2) }; break;
+    default: return;
+  }
+  setCollisionRectForTile(selectedTile, rect);
+}
+
+// Collision editor mouse events
+(function() {
+  const cvs = document.getElementById('collisionEditor');
+
+  cvs.addEventListener('mousedown', e => {
+    e.preventDefault();
+    const ts = level.tilemap ? level.tilemap.tileSize : 16;
+    const edge = collisionEditorHitEdge(e);
+    if (edge) {
+      colEditorDragging = true;
+      colEditorAction = edge;
+      colEditorStart = getCollisionRect(selectedTile);
+    } else {
+      colEditorDragging = true;
+      colEditorAction = 'draw';
+      colEditorStart = collisionEditorPixel(e);
+    }
+  });
+
+  cvs.addEventListener('mousemove', e => {
+    if (!colEditorDragging) {
+      // Update cursor based on edge proximity
+      const edge = collisionEditorHitEdge(e);
+      if (edge === 'edge-t' || edge === 'edge-b') cvs.style.cursor = 'ns-resize';
+      else if (edge === 'edge-l' || edge === 'edge-r') cvs.style.cursor = 'ew-resize';
+      else cvs.style.cursor = 'crosshair';
+      return;
+    }
+    const ts = level.tilemap ? level.tilemap.tileSize : 16;
+    const pos = collisionEditorPixel(e);
+
+    if (colEditorAction === 'draw') {
+      const x1 = Math.min(colEditorStart.x, pos.x);
+      const y1 = Math.min(colEditorStart.y, pos.y);
+      const x2 = Math.max(colEditorStart.x, pos.x);
+      const y2 = Math.max(colEditorStart.y, pos.y);
+      setCollisionRectForTile(selectedTile, { x: x1, y: y1, w: x2 - x1, h: y2 - y1 });
+    } else if (colEditorAction === 'edge-t') {
+      const orig = colEditorStart;
+      const newY = Math.min(pos.y, orig.y + orig.h);
+      setCollisionRectForTile(selectedTile, { x: orig.x, y: newY, w: orig.w, h: orig.y + orig.h - newY });
+    } else if (colEditorAction === 'edge-b') {
+      const orig = colEditorStart;
+      const newH = Math.max(0, pos.y - orig.y);
+      setCollisionRectForTile(selectedTile, { x: orig.x, y: orig.y, w: orig.w, h: newH });
+    } else if (colEditorAction === 'edge-l') {
+      const orig = colEditorStart;
+      const newX = Math.min(pos.x, orig.x + orig.w);
+      setCollisionRectForTile(selectedTile, { x: newX, y: orig.y, w: orig.x + orig.w - newX, h: orig.h });
+    } else if (colEditorAction === 'edge-r') {
+      const orig = colEditorStart;
+      const newW = Math.max(0, pos.x - orig.x);
+      setCollisionRectForTile(selectedTile, { x: orig.x, y: orig.y, w: newW, h: orig.h });
+    }
+  });
+
+  document.addEventListener('mouseup', e => {
+    if (colEditorDragging) {
+      colEditorDragging = false;
+      colEditorAction = null;
+      colEditorStart = null;
+    }
+  });
+})();
+
+// ============================================================
+// HELPERS
+// ============================================================
+function hexToRgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+function rgbToHex(r, g, b) {
+  return '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('');
+}
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+autoRestore();
+fitToView();
+renderEntityList();
+
+// Touch support — map touch events to mouse events for mobile/tablet
+(function() {
+  function touchToMouse(e, type) {
+    if (e.touches.length > 1) return;
+    const t = e.changedTouches[0];
+    const evt = new MouseEvent(type, {
+      clientX: t.clientX, clientY: t.clientY,
+      button: 0, buttons: 1,
+      bubbles: true, cancelable: true
+    });
+    t.target.dispatchEvent(evt);
+    e.preventDefault();
+  }
+  document.addEventListener('touchstart', e => touchToMouse(e, 'mousedown'), {passive: false});
+  document.addEventListener('touchmove', e => touchToMouse(e, 'mousemove'), {passive: false});
+  document.addEventListener('touchend', e => touchToMouse(e, 'mouseup'), {passive: false});
+})();
+</script>
+</body>
+</html>

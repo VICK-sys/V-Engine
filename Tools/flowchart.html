@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V-Engine Flowchart</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#08080f;--surface:#101020;--surface2:#181830;--border:#252545;
+  --text:#d8d8f0;--dim:#6868a0;--dimmer:#404068;
+  --purple:#a855f7;--blue:#3b82f6;--cyan:#06b6d4;--green:#22c55e;
+  --orange:#f97316;--pink:#ec4899;--red:#ef4444;--yellow:#eab308;
+}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;height:100vh}
+
+/* Dot grid background */
+body::before{content:'';position:fixed;inset:0;
+  background-image:radial-gradient(circle,rgba(168,85,247,0.07) 1px,transparent 1px);
+  background-size:32px 32px;pointer-events:none;z-index:0}
+
+/* ── Topbar ── */
+.topbar{position:fixed;top:0;left:0;right:0;height:52px;background:var(--surface);
+  border-bottom:1px solid var(--border);display:flex;align-items:center;
+  padding:0 20px;z-index:100;gap:12px}
+.logo{font-size:16px;font-weight:700;color:var(--purple);letter-spacing:1.5px}
+.logo span{color:var(--dim);font-weight:400;font-size:13px;margin-left:4px}
+
+.tabs{display:flex;gap:2px;margin-left:20px}
+.tab{padding:6px 16px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;
+  color:var(--dim);transition:all 0.2s;border:1px solid transparent;user-select:none}
+.tab:hover{color:var(--text);background:rgba(255,255,255,0.04)}
+.tab.active{color:var(--purple);background:rgba(168,85,247,0.12);border-color:rgba(168,85,247,0.3)}
+
+.sep{width:1px;height:24px;background:var(--border);margin:0 4px}
+
+/* ── Sim controls ── */
+.sim-controls{display:flex;align-items:center;gap:6px}
+.sim-btn{background:none;border:1px solid var(--border);color:var(--dim);
+  width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:14px;
+  display:flex;align-items:center;justify-content:center;transition:all 0.2s}
+.sim-btn:hover{color:var(--text);border-color:var(--purple);background:rgba(168,85,247,0.1)}
+.sim-btn.active{color:var(--green);border-color:var(--green);background:rgba(34,197,94,0.15)}
+.sim-step{font-size:11px;color:var(--dim);min-width:70px;text-align:center;font-variant-numeric:tabular-nums}
+.sim-step b{color:var(--text)}
+.speed-btn{font-size:10px;padding:3px 8px;width:auto;font-weight:600}
+.speed-btn.active{color:var(--cyan);border-color:var(--cyan);background:rgba(6,182,212,0.12)}
+
+/* ── Search ── */
+.search-box{position:relative;margin-left:auto}
+.search-box input{background:rgba(255,255,255,0.04);border:1px solid var(--border);
+  border-radius:6px;padding:6px 10px 6px 28px;color:var(--text);font-size:12px;
+  width:140px;outline:none;transition:all 0.2s}
+.search-box input:focus{border-color:var(--purple);width:200px;background:rgba(168,85,247,0.06)}
+.search-box input::placeholder{color:var(--dimmer)}
+.search-box .ico{position:absolute;left:8px;top:50%;transform:translateY(-50%);
+  color:var(--dimmer);font-size:12px;pointer-events:none}
+
+/* ── Zoom ── */
+.zoom-controls{display:flex;align-items:center;gap:4px}
+.zoom-btn{background:none;border:1px solid var(--border);color:var(--dim);
+  width:28px;height:28px;border-radius:5px;cursor:pointer;font-size:14px;
+  display:flex;align-items:center;justify-content:center;transition:all 0.15s}
+.zoom-btn:hover{color:var(--text);border-color:var(--purple)}
+.zoom-lbl{font-size:11px;color:var(--dim);width:36px;text-align:center;font-variant-numeric:tabular-nums}
+
+/* ── Canvas ── */
+.canvas-wrap{position:fixed;top:52px;left:0;right:0;bottom:0;overflow:hidden;cursor:grab}
+.canvas-wrap.grabbing{cursor:grabbing}
+.canvas{position:absolute;transform-origin:0 0;will-change:transform}
+
+/* ── SVG connections ── */
+svg.conns{position:absolute;top:0;left:0;pointer-events:none;z-index:1;overflow:visible}
+.conn-glow{fill:none;stroke-linecap:round}
+.conn-line{fill:none;stroke-linecap:round}
+.conn-dash{fill:none;stroke-linecap:round;stroke-dasharray:6 8;animation:dash 0.8s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-14}}
+.conn-dot{animation:cdot 2.5s ease-in-out infinite}
+@keyframes cdot{0%,100%{opacity:0.2;r:2.5}50%{opacity:1;r:4}}
+
+/* ── Section labels ── */
+.section{position:absolute;border-radius:14px;pointer-events:none;z-index:0}
+.section .sec-label{position:absolute;top:12px;left:16px;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:2.5px;opacity:0.5}
+.section.s-purple{background:rgba(168,85,247,0.03);border:1px dashed rgba(168,85,247,0.12)}
+.section.s-purple .sec-label{color:var(--purple)}
+.section.s-blue{background:rgba(59,130,246,0.03);border:1px dashed rgba(59,130,246,0.12)}
+.section.s-blue .sec-label{color:var(--blue)}
+.section.s-cyan{background:rgba(6,182,212,0.03);border:1px dashed rgba(6,182,212,0.12)}
+.section.s-cyan .sec-label{color:var(--cyan)}
+.section.s-green{background:rgba(34,197,94,0.03);border:1px dashed rgba(34,197,94,0.12)}
+.section.s-green .sec-label{color:var(--green)}
+.section.s-orange{background:rgba(249,115,22,0.03);border:1px dashed rgba(249,115,22,0.12)}
+.section.s-orange .sec-label{color:var(--orange)}
+.section.s-pink{background:rgba(236,72,153,0.03);border:1px dashed rgba(236,72,153,0.12)}
+.section.s-pink .sec-label{color:var(--pink)}
+
+/* ── Nodes ── */
+.node{position:absolute;border-radius:10px;cursor:pointer;z-index:2;text-align:left;
+  user-select:none;transition:all 0.25s cubic-bezier(.4,0,.2,1);
+  opacity:0;transform:translateY(16px) scale(0.97);padding:0;overflow:hidden;
+  background:var(--surface);border:1px solid var(--border)}
+.node.vis{opacity:1;transform:translateY(0) scale(1)}
+.node:hover{transform:translateY(-2px) scale(1.02);z-index:10;border-color:rgba(255,255,255,0.15)}
+
+.node-accent{position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:10px 0 0 10px}
+.node-body{padding:12px 14px 10px 16px}
+.node .title{font-weight:600;font-size:13px;line-height:1.3}
+.node .sub{font-size:10.5px;color:var(--dim);margin-top:1px}
+.node .click-hint{font-size:9px;color:var(--dimmer);margin-top:3px;
+  opacity:0;transition:opacity 0.15s;letter-spacing:0.3px}
+.node:hover .click-hint{opacity:1}
+
+.node .detail{font-size:11px;line-height:1.55;color:rgba(255,255,255,0.65);
+  margin-top:0;padding-top:0;border-top:none;
+  max-height:0;overflow:hidden;opacity:0;transition:all 0.3s ease}
+.node.open .detail{max-height:300px;opacity:1;margin-top:8px;padding-top:8px;
+  border-top:1px solid rgba(255,255,255,0.06)}
+
+/* Ripple on click */
+.node .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,0.15);
+  transform:scale(0);animation:rip 0.5s ease-out forwards;pointer-events:none}
+@keyframes rip{to{transform:scale(4);opacity:0}}
+
+/* Color variants */
+.node.c-purple{border-color:rgba(168,85,247,0.25)}
+.node.c-purple:hover,.node.c-purple.open{border-color:rgba(168,85,247,0.5);
+  box-shadow:0 0 20px rgba(168,85,247,0.1)}
+.node.c-purple .title{color:#c084fc}
+.node.c-purple .node-accent{background:var(--purple)}
+
+.node.c-blue{border-color:rgba(59,130,246,0.25)}
+.node.c-blue:hover,.node.c-blue.open{border-color:rgba(59,130,246,0.5);
+  box-shadow:0 0 20px rgba(59,130,246,0.1)}
+.node.c-blue .title{color:#60a5fa}
+.node.c-blue .node-accent{background:var(--blue)}
+
+.node.c-cyan{border-color:rgba(6,182,212,0.25)}
+.node.c-cyan:hover,.node.c-cyan.open{border-color:rgba(6,182,212,0.5);
+  box-shadow:0 0 20px rgba(6,182,212,0.1)}
+.node.c-cyan .title{color:#22d3ee}
+.node.c-cyan .node-accent{background:var(--cyan)}
+
+.node.c-green{border-color:rgba(34,197,94,0.25)}
+.node.c-green:hover,.node.c-green.open{border-color:rgba(34,197,94,0.5);
+  box-shadow:0 0 20px rgba(34,197,94,0.1)}
+.node.c-green .title{color:#4ade80}
+.node.c-green .node-accent{background:var(--green)}
+
+.node.c-orange{border-color:rgba(249,115,22,0.25)}
+.node.c-orange:hover,.node.c-orange.open{border-color:rgba(249,115,22,0.5);
+  box-shadow:0 0 20px rgba(249,115,22,0.1)}
+.node.c-orange .title{color:#fb923c}
+.node.c-orange .node-accent{background:var(--orange)}
+
+.node.c-pink{border-color:rgba(236,72,153,0.25)}
+.node.c-pink:hover,.node.c-pink.open{border-color:rgba(236,72,153,0.5);
+  box-shadow:0 0 20px rgba(236,72,153,0.1)}
+.node.c-pink .title{color:#f472b6}
+.node.c-pink .node-accent{background:var(--pink)}
+
+/* Simulation highlight */
+.node.sim-active{z-index:20!important;
+  animation:simPulse 1s ease-in-out infinite}
+@keyframes simPulse{
+  0%,100%{filter:brightness(1);transform:scale(1)}
+  50%{filter:brightness(1.4);transform:scale(1.04)}}
+.node.sim-active.c-purple{box-shadow:0 0 30px rgba(168,85,247,0.4),0 0 60px rgba(168,85,247,0.15)!important}
+.node.sim-active.c-blue{box-shadow:0 0 30px rgba(59,130,246,0.4),0 0 60px rgba(59,130,246,0.15)!important}
+.node.sim-active.c-cyan{box-shadow:0 0 30px rgba(6,182,212,0.4),0 0 60px rgba(6,182,212,0.15)!important}
+.node.sim-active.c-green{box-shadow:0 0 30px rgba(34,197,94,0.4),0 0 60px rgba(34,197,94,0.15)!important}
+.node.sim-active.c-orange{box-shadow:0 0 30px rgba(249,115,22,0.4),0 0 60px rgba(249,115,22,0.15)!important}
+.node.sim-active.c-pink{box-shadow:0 0 30px rgba(236,72,153,0.4),0 0 60px rgba(236,72,153,0.15)!important}
+.node.sim-dim{opacity:0.25!important;filter:saturate(0.3)}
+
+/* Search highlight */
+.node.hl{animation:hlPulse 0.6s ease-in-out 3}
+@keyframes hlPulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.8)}}
+.node.dim{opacity:0.12!important;filter:saturate(0)}
+
+/* ── Legend ── */
+.legend{position:fixed;bottom:12px;left:12px;background:var(--surface);
+  border:1px solid var(--border);border-radius:8px;padding:8px 14px;z-index:50;
+  display:flex;gap:14px;font-size:10px}
+.legend-item{display:flex;align-items:center;gap:5px;color:var(--dim)}
+.legend-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+/* ── Minimap ── */
+.minimap{position:fixed;bottom:12px;right:12px;width:160px;height:100px;
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  z-index:50;overflow:hidden}
+.mm-inner{position:relative;width:100%;height:100%}
+.mm-node{position:absolute;border-radius:1px;opacity:0.7}
+.mm-vp{position:absolute;border:1px solid var(--purple);background:rgba(168,85,247,0.06);
+  border-radius:1px;pointer-events:none}
+
+/* ── Shortcuts ── */
+.shortcuts{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:6px 14px;z-index:50;display:flex;gap:16px;font-size:10px;color:var(--dimmer)}
+.shortcuts kbd{background:rgba(255,255,255,0.06);border:1px solid var(--border);
+  border-radius:3px;padding:1px 5px;font-family:inherit;font-size:9px;color:var(--dim)}
+
+/* ── Floating particles ── */
+.particle{position:fixed;border-radius:50%;pointer-events:none;z-index:0;opacity:0;
+  animation:pFloat 10s ease-in-out infinite}
+@keyframes pFloat{0%{opacity:0;transform:translateY(0)}15%{opacity:0.5}85%{opacity:0.5}
+  100%{opacity:0;transform:translateY(-250px) scale(0.3)}}
+
+/* Stagger delays for node entry */
+.s0{transition-delay:0s}.s1{transition-delay:.03s}.s2{transition-delay:.06s}
+.s3{transition-delay:.09s}.s4{transition-delay:.12s}.s5{transition-delay:.15s}
+.s6{transition-delay:.18s}.s7{transition-delay:.21s}.s8{transition-delay:.24s}
+.s9{transition-delay:.27s}.s10{transition-delay:.3s}.s11{transition-delay:.33s}
+.s12{transition-delay:.36s}.s13{transition-delay:.39s}.s14{transition-delay:.42s}
+.s15{transition-delay:.45s}.s16{transition-delay:.48s}.s17{transition-delay:.51s}
+.s18{transition-delay:.54s}.s19{transition-delay:.57s}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">V-ENGINE<span>flowchart</span></div>
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-v="gameloop">Game Loop</div>
+    <div class="tab" data-v="architecture">Architecture</div>
+    <div class="tab" data-v="rendering">Render Pipeline</div>
+    <div class="tab" data-v="entities">Entity Hierarchy</div>
+    <div class="tab" data-v="scene">Scene Lifecycle</div>
+  </div>
+  <div class="sep"></div>
+  <div class="sim-controls">
+    <button class="sim-btn" id="simPlay" title="Play/Pause simulation">&#9654;</button>
+    <button class="sim-btn" id="simStep" title="Step forward">&#9197;</button>
+    <button class="sim-btn speed-btn" data-spd="2000" title="Slow">1&times;</button>
+    <button class="sim-btn speed-btn active" data-spd="800" title="Normal">2&times;</button>
+    <button class="sim-btn speed-btn" data-spd="300" title="Fast">4&times;</button>
+    <div class="sim-step" id="simLabel"></div>
+  </div>
+  <div class="search-box">
+    <span class="ico">&#128269;</span>
+    <input type="text" placeholder="Search..." id="search">
+  </div>
+  <div class="zoom-controls">
+    <button class="zoom-btn" id="zOut">-</button>
+    <span class="zoom-lbl" id="zLbl">100%</span>
+    <button class="zoom-btn" id="zIn">+</button>
+    <button class="zoom-btn" id="zReset" style="font-size:12px">&#8634;</button>
+  </div>
+</div>
+
+<div class="canvas-wrap" id="wrap">
+  <div class="canvas" id="canvas"></div>
+</div>
+
+<div class="legend" id="legend"></div>
+<div class="minimap" id="minimap"><div class="mm-inner" id="mmInner"></div></div>
+<div class="shortcuts">
+  <span><kbd>Scroll</kbd> zoom</span>
+  <span><kbd>Drag</kbd> pan</span>
+  <span><kbd>Click</kbd> expand</span>
+  <span><kbd>1-5</kbd> views</span>
+  <span><kbd>Space</kbd> simulate</span>
+  <span><kbd>/</kbd> search</span>
+</div>
+
+<script>
+// ════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════
+
+const C = {purple:'#a855f7',blue:'#3b82f6',cyan:'#06b6d4',green:'#22c55e',
+  orange:'#f97316',pink:'#ec4899',red:'#ef4444'};
+
+const VIEWS = {
+
+// ── GAME LOOP ──
+gameloop: {
+  legend:[
+    {color:C.purple,label:'Frame Setup'},
+    {color:C.blue,label:'Fixed Timestep'},
+    {color:C.green,label:'Signals / Hooks'},
+    {color:C.cyan,label:'Render Phase'},
+    {color:C.orange,label:'Overlays'},
+  ],
+  sections:[
+    {x:60,y:20,w:340,h:260,cls:'s-purple',label:'Pre-Update'},
+    {x:60,y:300,w:340,h:610,cls:'s-blue',label:'Fixed Timestep \u2022 60 FPS'},
+    {x:500,y:20,w:340,h:890,cls:'s-cyan',label:'Render Phase'},
+  ],
+  nodes:[
+    {id:'apply',x:110,y:50,w:240,c:'purple',title:'ApplyPendingScene',sub:'Deferred scene switch',ord:1,
+     detail:'Scene switches queued from previous frame are applied here. Calls SwapScene() which destroys the old scene and creates the new one. Ensures no mid-frame state corruption.'},
+    {id:'poll',x:110,y:118,w:240,c:'purple',title:'Poll Events',sub:'SDL2 input processing',ord:2,
+     detail:'Processes all queued SDL2 events: keyboard key states, mouse position/buttons/scroll, gamepad buttons/sticks, window resize, and quit. Updates Eng.Input, Eng.Mouse, Eng.Gamepad.'},
+    {id:'engine',x:110,y:186,w:240,c:'purple',title:'Engine Actions',sub:'F3 / F11 / F12 / +/-',ord:3,
+     detail:'Built-in key bindings via InputMap:\n\u2022 F3 = Debug overlay toggle\n\u2022 F11 = Fullscreen toggle\n\u2022 F12 = Screenshot capture\n\u2022 +/- = Volume up/down'},
+    {id:'effects',x:110,y:330,w:240,c:'blue',title:'Effects.Update',sub:'Real time (not scaled)',ord:4,
+     detail:'Updates screen flash fade-out and freeze timer. Runs on real delta time so effects work even when TimeScale = 0 (game frozen for hit-freeze effect).'},
+    {id:'time',x:110,y:398,w:240,c:'blue',title:'Update Time',sub:'scaledDt, total, frame count',ord:5,
+     detail:'Advances Eng.Time:\n\u2022 Elapsed = dt \u00d7 TimeScale\n\u2022 Total += Elapsed\n\u2022 FrameCount++\nTimeScale: 1 = normal, 0.5 = slow-mo, 0 = frozen.'},
+    {id:'timers',x:110,y:466,w:240,c:'blue',title:'Timers.Update',sub:'After / Every callbacks',ord:6,
+     detail:'Fires delayed (After) and repeating (Every) callbacks. Repeating timers catch up on slow frames. Safe to add/cancel timers within callbacks. Auto-cancelled on scene switch.'},
+    {id:'tweens',x:110,y:534,w:240,c:'blue',title:'Tweens.Update',sub:'Float / Vec2 / Color interpolation',ord:7,
+     detail:'Advances all active tweens with 31 easing curves. Handles delay countdown. Snaps to exact target on completion. Fires OnComplete callbacks. Auto-cancelled on scene switch.'},
+    {id:'preupdate',x:110,y:602,w:240,c:'green',title:'OnPreUpdate',sub:'Signal\u003Cfloat\u003E \u2014 user hook',ord:8,
+     detail:'User hook signal fired before scene update. Receives scaledDt. Subscribe with Eng.OnPreUpdate.Subscribe(). Use for global logic that runs before entities.'},
+    {id:'sceneupd',x:110,y:670,w:240,c:'blue',title:'Scene.Update(dt)',sub:'Core game logic',ord:9,
+     detail:'The main update step:\n\u2022 Group iterates entities backward (safe removal)\n\u2022 Each Entity.Update(dt) called\n\u2022 Attached Behaviors auto-updated\n\u2022 Collision checks run\n\u2022 Your game logic in the scene override'},
+    {id:'camera',x:110,y:838,w:240,c:'blue',title:'Camera.Update',sub:'Follow, shake, bounds, zoom',ord:10,
+     detail:'Exponential decay follow: 1 - pow(1-lerp, dt\u00d760). Framerate-independent smoothing. Shake fade-out with stacking. World bounds clamping. Auto-unfollows inactive targets.'},
+
+    {id:'begin',x:550,y:50,w:240,c:'cyan',title:'BeginFrame',sub:'glClear, set viewport',ord:11,
+     detail:'Clears framebuffer with Eng.GL.ClearR/G/B color. Sets up viewport with letterboxing for logical resolution scaling. Resets batch state.'},
+    {id:'ppbegin',x:550,y:118,w:240,c:'cyan',title:'PostProcess.Begin',sub:'Redirect to FBO',ord:12,
+     detail:'If post-processing is enabled, redirects all rendering to the ping framebuffer. If disabled, no-op \u2014 scene renders directly to screen with zero overhead.'},
+    {id:'predraw',x:550,y:186,w:240,c:'green',title:'OnPreDraw',sub:'Signal \u2014 user hook',ord:13,
+     detail:'User hook fired before scene draws. Use for custom rendering behind the scene: background effects, skyboxes, etc.'},
+    {id:'scenedraw',x:550,y:264,w:240,c:'cyan',title:'Scene.Draw()',sub:'Sort \u2192 Sprite / Tile / Text',ord:14,
+     detail:'Sorts entities by Layer then ZOrder.\n\u2022 Sprites \u2192 SpriteBatch (8192 quads, 8 textures)\n\u2022 Primitives \u2192 PrimitiveBatch\n\u2022 Tilemaps with camera culling\n\u2022 Text via texture or GlyphAtlas\n\u2022 LightRenderer compositing'},
+    {id:'flush1',x:550,y:352,w:240,c:'cyan',title:'FlushAll()',sub:'Submit batches to GPU',ord:15,
+     detail:'Flushes SpriteBatch and PrimitiveBatch, issuing draw calls. Ensures all scene content is rendered before overlays draw on top.'},
+    {id:'overlays',x:550,y:430,w:240,c:'orange',title:'Overlays',sub:'Flash \u2192 Transition \u2192 Debug \u2192 Vol',ord:16,
+     detail:'Draw order:\n1. Effects flash (fullscreen color fade)\n2. Scene transition (fade/wipe/circle wipe)\n3. Debug overlay (F3 \u2014 FPS, bounds)\n4. Volume HUD bar'},
+    {id:'postdraw',x:550,y:518,w:240,c:'green',title:'OnPostDraw',sub:'Signal \u2014 user hook',ord:17,
+     detail:'User hook fired after overlays. Last chance to draw before post-processing. Use for custom HUD elements that should go through post-process.'},
+    {id:'flush2',x:550,y:596,w:240,c:'cyan',title:'FlushAll()',sub:'Final flush',ord:18,
+     detail:'Final flush ensures all overlay and user-drawn content is submitted before post-processing reads the framebuffer.'},
+    {id:'ppend',x:550,y:674,w:240,c:'cyan',title:'PostProcess.End',sub:'Ping-pong FBOs \u2192 screen',ord:19,
+     detail:'Runs shader passes in sequence using ping-pong FBOs. Each pass reads one FBO, writes to the other. Built-in: CRT, Glitch, ColdbergTV. Custom shaders supported.'},
+    {id:'endframe',x:550,y:838,w:240,c:'cyan',title:'EndFrame',sub:'SDL_GL_SwapWindow',ord:20,
+     detail:'Presents the final composited frame to the display. If VSync is enabled, blocks until the next vertical blank. If screenshot was requested, captures here.'},
+  ],
+  connections:[
+    {from:'apply',to:'poll',color:C.purple},
+    {from:'poll',to:'engine',color:C.purple},
+    {from:'engine',to:'effects',color:C.purple,label:''},
+    {from:'effects',to:'time',color:C.blue},
+    {from:'time',to:'timers',color:C.blue},
+    {from:'timers',to:'tweens',color:C.blue},
+    {from:'tweens',to:'preupdate',color:C.blue},
+    {from:'preupdate',to:'sceneupd',color:C.green},
+    {from:'sceneupd',to:'camera',color:C.blue},
+    {from:'camera',to:'begin',color:'#60a5fa',type:'bridge'},
+    {from:'begin',to:'ppbegin',color:C.cyan},
+    {from:'ppbegin',to:'predraw',color:C.cyan},
+    {from:'predraw',to:'scenedraw',color:C.green},
+    {from:'scenedraw',to:'flush1',color:C.cyan},
+    {from:'flush1',to:'overlays',color:C.cyan},
+    {from:'overlays',to:'postdraw',color:C.orange},
+    {from:'postdraw',to:'flush2',color:C.green},
+    {from:'flush2',to:'ppend',color:C.cyan},
+    {from:'ppend',to:'endframe',color:C.cyan},
+    {from:'endframe',to:'apply',color:C.purple,type:'loop'},
+  ],
+},
+
+// ── ARCHITECTURE ──
+architecture: {
+  legend:[
+    {color:C.purple,label:'Core'},{color:C.blue,label:'Graphics'},
+    {color:C.green,label:'Input'},{color:C.orange,label:'Audio'},
+    {color:C.cyan,label:'Utilities'},{color:C.pink,label:'Game Objects'},
+  ],
+  sections:[
+    {x:20,y:15,w:900,h:90,cls:'s-purple',label:'Eng \u2014 Static Global Access'},
+    {x:20,y:230,w:900,h:390,cls:'s-pink',label:'Scene'},
+  ],
+  nodes:[
+    {id:'eng',x:40,y:40,w:120,c:'purple',title:'Eng',sub:'Static hub',ord:1,detail:'Static class providing global access to all subsystems. Delegates to EngineContext (swappable for testing).'},
+    {id:'game',x:180,y:40,w:120,c:'purple',title:'Game',sub:'Loop + Scenes',ord:2,detail:'Window, OpenGL context, fixed-timestep game loop, scene management, scene stack (push/pop).'},
+    {id:'gl',x:320,y:40,w:120,c:'blue',title:'GLRenderer',sub:'OpenGL 3.3',ord:3,detail:'SpriteBatch + PrimitiveBatch + texture cache + shader management. World-space drawing facade.'},
+    {id:'input',x:460,y:40,w:120,c:'green',title:'Input',sub:'KB/Mouse/Pad',ord:4,detail:'KeyboardInput, MouseInput, GamepadInput, InputMap (named action bindings, remappable).'},
+    {id:'audio',x:600,y:40,w:120,c:'orange',title:'Audio',sub:'SDL_mixer',ord:5,detail:'32 channels, spatial audio, WAV/OGG/MP3/FLAC. Master/Sound/Music volume.'},
+    {id:'pp2',x:740,y:40,w:120,c:'cyan',title:'PostProcess',sub:'Shader passes',ord:6,detail:'Multi-pass pipeline. Built-in CRT, Glitch, ColdbergTV. Custom GLSL shaders.'},
+
+    {id:'tim2',x:40,y:140,w:115,c:'cyan',title:'Timers',sub:'After / Every',ord:7,detail:'Delayed and repeating callbacks with pause/resume. Auto-cancelled on scene switch.'},
+    {id:'tw2',x:170,y:140,w:115,c:'cyan',title:'Tweens',sub:'31 easings',ord:8,detail:'Float, Vec2, Color interpolation. Chainable delay + OnComplete.'},
+    {id:'cam2',x:300,y:140,w:115,c:'cyan',title:'Camera',sub:'Follow / Shake',ord:9,detail:'Exponential decay follow, zoom, stacking shake, world bounds.'},
+    {id:'eff2',x:430,y:140,w:115,c:'cyan',title:'Effects',sub:'Flash / Freeze',ord:10,detail:'Screen flash with fade-out. Hit freeze via TimeScale (real-time immune).'},
+    {id:'sig2',x:560,y:140,w:115,c:'cyan',title:'Signals',sub:'Pub/Sub',ord:11,detail:'0/1/2 arg variants. Snapshot iteration. Zero alloc after warmup.'},
+    {id:'seq2',x:690,y:140,w:115,c:'cyan',title:'Sequence',sub:'Cutscene script',ord:12,detail:'Call, Wait, TweenFloat/Vec2/Color, Together. Declarative chainable API.'},
+
+    {id:'scene2',x:40,y:260,w:160,c:'purple',title:'Scene',sub:'Base class',ord:13,detail:'Abstract base for game screens. Internal Group. Override Create(), Update(dt), Draw(). Backward iteration.'},
+    {id:'group2',x:40,y:360,w:160,c:'purple',title:'Group',sub:'Entity container',ord:14,detail:'Hierarchical container. O(1) removal via swap-with-last. Sorts by Layer/ZOrder.'},
+    {id:'entity2',x:250,y:260,w:150,c:'pink',title:'Entity',sub:'Base object',ord:15,detail:'Position, Scale, Angle, Layer, ZOrder, ScrollFactor. Active/Visible/Destroyed lifecycle. Behaviors.'},
+    {id:'kin2',x:250,y:360,w:150,c:'pink',title:'KinematicEntity',sub:'+ Velocity/Accel',ord:16,detail:'Extends Entity with Velocity, Acceleration, AngularVelocity. Auto-applied in Update().'},
+    {id:'spr2',x:250,y:450,w:150,c:'pink',title:'Sprite',sub:'Animated visual',ord:17,detail:'Spritesheet animation, FlipX/Y, hitbox/origin/damageBox. Flash, Silhouette, Outline effects.'},
+    {id:'tm2',x:440,y:260,w:150,c:'blue',title:'Tilemap',sub:'Grid + collision',ord:18,detail:'Grid-based tile rendering and collision. Animated tiles. Camera-culled.'},
+    {id:'txt2',x:440,y:360,w:150,c:'blue',title:'Text',sub:'TTF / GlyphAtlas',ord:19,detail:'Texture mode (static) or Atlas mode (dynamic). Full Unicode. Font cache.'},
+    {id:'part2',x:440,y:450,w:150,c:'blue',title:'ParticleEmitter',sub:'Struct particles',ord:20,detail:'Zero-alloc struct particles. Speed, gravity, color, fade, rotation. Optional texture.'},
+    {id:'col2',x:640,y:260,w:160,c:'green',title:'Collision',sub:'AABB/Circle/Sweep',ord:21,detail:'Separate, SeparateOneway, OverlapGroup/Hash. Circle collision. Sweep CCD. SpatialHash broad-phase.'},
+    {id:'light2',x:640,y:360,w:160,c:'blue',title:'LightRenderer',sub:'Point/Spot/Shadow',ord:22,detail:'Light map FBO + multiply blend. Point and spot lights. Shadow casting via 2D visibility polygon.'},
+    {id:'pool2',x:640,y:450,w:160,c:'cyan',title:'Pool<T>',sub:'Object recycling',ord:23,detail:'Composition (has Group). O(1) Get/Release. Zero alloc once warm. Preload support.'},
+  ],
+  connections:[
+    {from:'eng',to:'game',color:C.purple},{from:'eng',to:'gl',color:C.purple},
+    {from:'eng',to:'input',color:C.purple},{from:'eng',to:'audio',color:C.purple},
+    {from:'eng',to:'pp2',color:C.purple},
+    {from:'game',to:'scene2',color:C.purple,type:'curve'},
+    {from:'scene2',to:'group2',color:C.purple},
+    {from:'group2',to:'entity2',color:C.pink,type:'curve'},
+    {from:'entity2',to:'kin2',color:C.pink},
+    {from:'kin2',to:'spr2',color:C.pink},
+  ],
+},
+
+// ── RENDER PIPELINE ──
+rendering: {
+  legend:[
+    {color:C.pink,label:'Game Objects'},{color:C.blue,label:'Batchers'},
+    {color:C.green,label:'GPU'},{color:C.purple,label:'Post-Process'},{color:C.cyan,label:'Output'},
+  ],
+  sections:[
+    {x:20,y:20,w:220,h:440,cls:'s-pink',label:'Game Objects'},
+    {x:290,y:20,w:260,h:440,cls:'s-blue',label:'Batching'},
+    {x:600,y:20,w:280,h:440,cls:'s-green',label:'GPU'},
+  ],
+  nodes:[
+    {id:'rs',x:40,y:60,w:180,c:'pink',title:'Sprite.Draw()',sub:'Textured quads',ord:1,detail:'Each sprite submits a textured quad with source rect, position, rotation, flip, color tint. Effect sprites (flash/outline) flush the batch.'},
+    {id:'rt',x:40,y:140,w:180,c:'pink',title:'Tilemap.Draw()',sub:'Camera-culled tiles',ord:2,detail:'Only visible tiles submitted. Each tile is a textured quad from the tileset. Animated tiles cycle globally.'},
+    {id:'rx',x:40,y:220,w:180,c:'pink',title:'Text.Draw()',sub:'TTF / GlyphAtlas',ord:3,detail:'Texture mode: one quad per string. Atlas mode: one quad per character, zero alloc.'},
+    {id:'rk',x:40,y:300,w:180,c:'pink',title:'SpriteStack',sub:'Layered slices',ord:4,detail:'Each slice is a separate quad. Same texture = same batch = efficient pseudo-3D.'},
+    {id:'rd',x:40,y:380,w:180,c:'pink',title:'Draw.* Helpers',sub:'Lines / Rects / Circles',ord:5,detail:'World-space and screen-space primitives. Thick lines as rotated quads. Polyline with miter joins.'},
+    {id:'sb',x:310,y:80,w:220,c:'blue',title:'SpriteBatch',sub:'8192 quads \u2022 8 textures',ord:6,detail:'Multi-texture batching: up to 8 textures bound per draw call. Auto-flushes when buffer full, all texture slots used, or blend mode changes.'},
+    {id:'pb',x:310,y:290,w:220,c:'blue',title:'PrimitiveBatch',sub:'Lines / Filled shapes',ord:7,detail:'Batches colored vertices for lines, rectangles, circles, filled quads. Per-vertex color gradients. Alpha, Additive, Multiply blending.'},
+    {id:'fl',x:310,y:400,w:220,c:'blue',title:'FlushAll()',sub:'Auto or manual trigger',ord:8,detail:'Submits all pending batches to GPU. Triggers: batch full, blend mode change, texture slots full, explicit call between render phases.'},
+    {id:'dc',x:620,y:60,w:240,c:'green',title:'glDrawElements',sub:'1 draw call per flush',ord:9,detail:'Single indexed draw call for all quads in the batch. Vertex data uploaded via glBufferSubData each flush. Shared index buffer.'},
+    {id:'sh',x:620,y:155,w:240,c:'green',title:'GLSL 330 Shaders',sub:'Sprite / Primitive / PP',ord:10,detail:'Built-in shaders:\n\u2022 Sprite: multi-texture, tint, flip, uEffect\n\u2022 Primitive: colored vertices\n\u2022 Post-process: fullscreen quad'},
+    {id:'ppp',x:620,y:260,w:240,c:'purple',title:'PostProcess Pipeline',sub:'Ping-pong FBOs',ord:11,detail:'Scene \u2192 Ping FBO \u2192 Pass 1 \u2192 Pong FBO \u2192 Pass 2 \u2192 ... \u2192 Screen. CRT, Glitch, ColdbergTV built-in. Custom shaders supported.'},
+    {id:'scr',x:620,y:380,w:240,c:'cyan',title:'Screen Output',sub:'SDL_GL_SwapWindow',ord:12,detail:'Final composited frame presented. Letterboxed to logical resolution. VSync optional. Screenshot capture point.'},
+  ],
+  connections:[
+    {from:'rs',to:'sb',color:C.pink,type:'curve'},{from:'rt',to:'sb',color:C.pink,type:'curve'},
+    {from:'rx',to:'sb',color:C.pink,type:'curve'},{from:'rk',to:'sb',color:C.pink,type:'curve'},
+    {from:'rd',to:'pb',color:C.pink,type:'curve'},
+    {from:'sb',to:'dc',color:C.blue,type:'curve'},{from:'pb',to:'dc',color:C.blue,type:'curve'},
+    {from:'dc',to:'sh',color:C.green},{from:'sh',to:'ppp',color:C.green},
+    {from:'ppp',to:'scr',color:C.purple},
+  ],
+},
+
+// ── ENTITY HIERARCHY ──
+entities: {
+  legend:[
+    {color:C.purple,label:'Base Classes'},{color:C.pink,label:'Visual Entities'},
+    {color:C.blue,label:'Containers'},{color:C.cyan,label:'UI Widgets'},{color:C.green,label:'Systems'},
+  ],
+  sections:[],
+  nodes:[
+    {id:'eb',x:310,y:30,w:220,c:'purple',title:'Entity',sub:'Position, Scale, Angle, Layer',ord:1,detail:'Base class for everything.\n\u2022 Active/Visible/Destroyed lifecycle\n\u2022 Behavior composition (AddBehavior)\n\u2022 AABB collision bounds\n\u2022 ScrollFactor for parallax\n\u2022 Immovable for statics'},
+    {id:'ek',x:310,y:130,w:220,c:'purple',title:'KinematicEntity',sub:'+ Velocity, Acceleration, AngVel',ord:2,detail:'Extends Entity with physics:\nvel += accel * dt\npos += vel * dt\nangle += angVel * dt'},
+    {id:'es',x:60,y:240,w:200,c:'pink',title:'Sprite',sub:'Animated spritesheet',ord:3,detail:'LoadFromMeta(), LoadGraphic(), MakeGraphic(). Animations with hitbox/origin/damageBox. Flash, Silhouette, Outline. FlipX/Y, frustum culling.'},
+    {id:'ess',x:60,y:360,w:200,c:'pink',title:'SpriteStack',sub:'Pseudo-3D slices',ord:4,detail:'Layered sprite slices. StackOffset, VisibleSlices. Rotation creates spinning 3D effect. Collision uses base slice.'},
+    {id:'eg',x:570,y:30,w:200,c:'blue',title:'Group',sub:'Entity container',ord:5,detail:'Hierarchical container. O(1) removal via swap-with-last. Sorts by Layer/ZOrder. Backward iteration in Update().'},
+    {id:'etm',x:310,y:240,w:200,c:'pink',title:'Tilemap',sub:'Grid tiles + collision',ord:6,detail:'SetTile/GetTile, IsSolid. CollideEntity/CollideEntityOneway. Animated tiles, camera culling. Per-tile collision rects.'},
+    {id:'ech',x:310,y:360,w:200,c:'pink',title:'ChunkedTilemap',sub:'Infinite streaming',ord:7,detail:'Chunk-based for large worlds. ChunkLoader callback. Auto-unload distant chunks. Negative coords supported.'},
+    {id:'etx',x:560,y:240,w:200,c:'pink',title:'Text',sub:'TTF / GlyphAtlas',ord:8,detail:'Texture mode (static) or Atlas (dynamic). Full Unicode. WrapWidth. Font cached by path+size.'},
+    {id:'epe',x:560,y:340,w:200,c:'pink',title:'ParticleEmitter',sub:'Struct particles',ord:9,detail:'Burst emit, zero alloc. Speed, gravity, life, size, color, rotation. Optional texture/spritesheet. Additive blend.'},
+    {id:'etr',x:560,y:430,w:200,c:'pink',title:'TrailRenderer',sub:'Ring buffer trail',ord:10,detail:'Follow entity or manual AddPoint. Thickness taper, color gradient, alpha fade. O(1) ring buffer.'},
+    {id:'edl',x:60,y:470,w:200,c:'cyan',title:'DialogueBox',sub:'Typewriter + choices',ord:11,detail:'Displays Dialogue tree. Typewriter reveal, portraits, branching choices. Configurable fonts/colors.'},
+    {id:'eui1',x:310,y:470,w:90,c:'cyan',title:'UIButton',sub:'Click',ord:12,detail:'Press-and-release click. Hover/pressed states. Auto-centered text.'},
+    {id:'eui2',x:410,y:470,w:80,c:'cyan',title:'UILabel',sub:'Text',ord:13,detail:'Screen-fixed text. WrapWidth for word wrapping.'},
+    {id:'eui3',x:500,y:470,w:80,c:'cyan',title:'UISlider',sub:'Range',ord:14,detail:'Horizontal drag slider. Min/Max/Value. OnChanged callback.'},
+    {id:'eui4',x:590,y:470,w:90,c:'cyan',title:'UICheckbox',sub:'Toggle',ord:15,detail:'Toggle with label. OnChanged callback.'},
+    {id:'ebh',x:810,y:30,w:160,c:'green',title:'Behavior',sub:'Composition',ord:16,detail:'Attachable logic. OnAttach(), Update(dt), OnDestroy(). Access Owner entity. Modular: health, patrol, flicker.'},
+    {id:'ecl',x:810,y:130,w:160,c:'green',title:'Collision',sub:'Static helpers',ord:17,detail:'Separate, SeparateOneway, OverlapGroup/Hash. Circle overlap/separate. Sweep CCD. SpatialHash broad-phase.'},
+    {id:'eai',x:810,y:230,w:160,c:'green',title:'AI',sub:'Movement helpers',ord:18,detail:'MoveToward, MoveAway, FaceToward. DistanceTo, InRange. HasLineOfSight (tile raycast).'},
+    {id:'esm',x:810,y:330,w:160,c:'green',title:'StateMachine',sub:'Enter/Update/Exit',ord:19,detail:'Generic state machine. Fluent On().Enter().Update().Exit(). Duration tracking per state.'},
+    {id:'esq',x:810,y:430,w:160,c:'green',title:'Sequence',sub:'Cutscene scripting',ord:20,detail:'Call, Wait, TweenFloat/Vec2/Color, Together. Declarative chainable. Auto-cancelled on scene switch.'},
+  ],
+  connections:[
+    {from:'eb',to:'ek',color:C.purple},
+    {from:'ek',to:'es',color:C.purple,type:'curve'},
+    {from:'es',to:'ess',color:C.pink},
+    {from:'eb',to:'eg',color:C.blue,type:'curve'},
+    {from:'eb',to:'etm',color:C.purple},
+    {from:'etm',to:'ech',color:C.pink},
+    {from:'eb',to:'etx',color:C.purple,type:'curve'},
+    {from:'etx',to:'epe',color:C.pink},
+    {from:'epe',to:'etr',color:C.pink},
+    {from:'eb',to:'ebh',color:C.green,type:'curve'},
+  ],
+},
+
+// ── SCENE LIFECYCLE ──
+scene: {
+  legend:[
+    {color:C.purple,label:'Trigger'},{color:C.orange,label:'Transition Out'},
+    {color:C.red,label:'Swap (Destroy/Create)'},{color:C.green,label:'Transition In'},{color:C.cyan,label:'Complete'},
+  ],
+  sections:[],
+  nodes:[
+    {id:'tr',x:260,y:30,w:300,c:'purple',title:'SwitchScene(scene, transition?)',sub:'Deferred to next frame start',ord:1,detail:'Scene switch is queued, not immediate. Applied at the start of the next frame. Ignored if a transition is already running.'},
+    {id:'tout',x:260,y:120,w:300,c:'orange',title:'Transition Out Phase',sub:'Progress: 0.0 \u2192 0.5',ord:2,detail:'Old scene continues to update and render. Transition draws on top (fade to black, wipe, circle closing, pixelate dissolve, etc).'},
+    {id:'old',x:30,y:210,w:210,c:'orange',title:'Old Scene Active',sub:'Still updating + drawing',ord:3,detail:'Old scene receives Update(dt) and Draw() calls throughout the out phase. All entities, timers, tweens continue running.'},
+    {id:'swap',x:260,y:230,w:300,c:'pink',title:'SwapScene() \u2014 Midpoint',sub:'Destroy old \u2192 Create new',ord:4,detail:'At progress = 0.5:\n1. Timers.CancelAll()\n2. Tweens.CancelAll()\n3. Old scene Destroy() \u2014 all entities\n4. New scene Create() called'},
+    {id:'cancel',x:30,y:330,w:210,c:'pink',title:'CancelAll()',sub:'Timers + Tweens cleared',ord:5,detail:'All active timers and tweens cancelled. Prevents stale callbacks from old scene firing in new scene. Sequences also cancelled.'},
+    {id:'destroy',x:30,y:420,w:210,c:'pink',title:'Old Scene.Destroy()',sub:'All entities destroyed',ord:6,detail:'Recursive destroy through root Group. Each entity\'s OnDestroy() called. Behaviors destroyed. Resources freed.'},
+    {id:'create',x:580,y:310,w:210,c:'green',title:'New Scene.Create()',sub:'Setup entities & logic',ord:7,detail:'Override point for the new scene. Create entities, load assets, set up camera, register timers/tweens.'},
+    {id:'tin',x:260,y:380,w:300,c:'green',title:'Transition In Phase',sub:'Progress: 0.5 \u2192 1.0',ord:8,detail:'New scene is now updating and rendering. Transition draws on top, revealing the new scene underneath.'},
+    {id:'newsc',x:580,y:420,w:210,c:'green',title:'New Scene Renders',sub:'Under transition overlay',ord:9,detail:'New scene fully operational. Update(dt) and Draw() each frame. Transition gradually reveals.'},
+    {id:'done',x:260,y:480,w:300,c:'cyan',title:'Transition Complete',sub:'Progress = 1.0, overlay removed',ord:10,detail:'Transition object removed. New scene renders with no overlay. Normal game loop resumes.'},
+    {id:'push',x:60,y:560,w:220,c:'purple',title:'PushScene(scene)',sub:'Stack: pause current',ord:11,detail:'Pushes new scene on top. Current scene paused (not destroyed). Use for pause menus, inventory, dialog overlays.'},
+    {id:'pop',x:540,y:560,w:220,c:'purple',title:'PopScene()',sub:'Stack: resume previous',ord:12,detail:'Pops and destroys top scene. Resumes the scene underneath. SceneStackDepth tracks stack size.'},
+  ],
+  connections:[
+    {from:'tr',to:'tout',color:C.purple},
+    {from:'tout',to:'old',color:C.orange,type:'curve'},
+    {from:'tout',to:'swap',color:C.orange},
+    {from:'swap',to:'cancel',color:C.red,type:'curve'},
+    {from:'swap',to:'create',color:C.red,type:'curve'},
+    {from:'cancel',to:'destroy',color:C.red},
+    {from:'swap',to:'tin',color:C.green},
+    {from:'tin',to:'newsc',color:C.green,type:'curve'},
+    {from:'tin',to:'done',color:C.green},
+  ],
+},
+};
+
+// ════════════════════════════════════════
+// RENDERER
+// ════════════════════════════════════════
+
+const wrap = document.getElementById('wrap');
+const cvs = document.getElementById('canvas');
+const legend = document.getElementById('legend');
+const mmInner = document.getElementById('mmInner');
+const search = document.getElementById('search');
+
+let zoom = 1, panX = 60, panY = 20;
+let dragging = false, dragSX, dragSY, panSX, panSY;
+let currentView = 'gameloop';
+let nodes = {};
+
+function setTransform() {
+  cvs.style.transform = `translate(${panX}px,${panY}px) scale(${zoom})`;
+  document.getElementById('zLbl').textContent = Math.round(zoom*100)+'%';
+  updateMinimap();
+}
+
+function render(viewName) {
+  currentView = viewName;
+  const v = VIEWS[viewName];
+  cvs.innerHTML = '';
+  nodes = {};
+  simStop();
+
+  // SVG
+  const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.classList.add('conns');
+  svg.setAttribute('width','1200');
+  svg.setAttribute('height','1200');
+
+  // Glow filter
+  const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
+  const filt = document.createElementNS('http://www.w3.org/2000/svg','filter');
+  filt.setAttribute('id','glow');
+  filt.setAttribute('x','-50%');filt.setAttribute('y','-50%');
+  filt.setAttribute('width','200%');filt.setAttribute('height','200%');
+  const blur = document.createElementNS('http://www.w3.org/2000/svg','feGaussianBlur');
+  blur.setAttribute('stdDeviation','4');blur.setAttribute('result','b');
+  const merge = document.createElementNS('http://www.w3.org/2000/svg','feMerge');
+  const m1 = document.createElementNS('http://www.w3.org/2000/svg','feMergeNode');
+  m1.setAttribute('in','b');
+  const m2 = document.createElementNS('http://www.w3.org/2000/svg','feMergeNode');
+  m2.setAttribute('in','SourceGraphic');
+  merge.appendChild(m1);merge.appendChild(m2);
+  filt.appendChild(blur);filt.appendChild(merge);
+  defs.appendChild(filt);
+
+  // Arrow markers
+  const colors = new Set(v.connections.map(c=>c.color));
+  colors.forEach(c => {
+    const mk = document.createElementNS('http://www.w3.org/2000/svg','marker');
+    mk.setAttribute('id','a'+c.slice(1));
+    mk.setAttribute('viewBox','0 0 10 6');mk.setAttribute('refX','9');mk.setAttribute('refY','3');
+    mk.setAttribute('markerWidth','7');mk.setAttribute('markerHeight','5');
+    mk.setAttribute('orient','auto-start-reverse');
+    const p = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    p.setAttribute('points','0,0 10,3 0,6');p.setAttribute('fill',c);
+    mk.appendChild(p);defs.appendChild(mk);
+  });
+  svg.appendChild(defs);
+  cvs.appendChild(svg);
+
+  // Sections
+  v.sections.forEach(s => {
+    const d = document.createElement('div');
+    d.className = `section ${s.cls}`;
+    d.style.cssText = `left:${s.x}px;top:${s.y}px;width:${s.w}px;height:${s.h}px`;
+    d.innerHTML = `<div class="sec-label">${s.label}</div>`;
+    cvs.appendChild(d);
+  });
+
+  // Nodes
+  v.nodes.forEach((n,i) => {
+    const d = document.createElement('div');
+    d.className = `node c-${n.c} s${Math.min(i,19)}`;
+    d.style.cssText = `left:${n.x}px;top:${n.y}px;width:${n.w}px`;
+    d.dataset.id = n.id;
+    d.dataset.ord = n.ord;
+    d.innerHTML = `<div class="node-accent"></div><div class="node-body">
+      <div class="title">${n.title}</div>
+      <div class="sub">${n.sub}</div>
+      <div class="detail">${(n.detail||'').replace(/\n/g,'<br>')}</div>
+      <div class="click-hint">click to expand</div></div>`;
+    d.addEventListener('click', e => {
+      // Ripple
+      const r = document.createElement('div');
+      r.className = 'ripple';
+      const rect = d.getBoundingClientRect();
+      const size = Math.max(rect.width,rect.height);
+      r.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX-rect.left-size/2}px;top:${e.clientY-rect.top-size/2}px`;
+      d.appendChild(r);
+      setTimeout(()=>r.remove(),500);
+      d.classList.toggle('open');
+      setTimeout(()=>drawConns(svg,v),60);
+    });
+    cvs.appendChild(d);
+    nodes[n.id] = d;
+  });
+
+  // Animate in
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    cvs.querySelectorAll('.node').forEach(n=>n.classList.add('vis'));
+  }));
+
+  // Draw connections after layout
+  setTimeout(()=>drawConns(svg,v),120);
+
+  // Legend
+  legend.innerHTML = v.legend.map(l=>
+    `<div class="legend-item"><div class="legend-dot" style="background:${l.color}"></div>${l.label}</div>`
+  ).join('');
+
+  // Tabs
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.v===viewName));
+
+  updateMinimap();
+}
+
+// ════════════════════════════════════════
+// CONNECTIONS
+// ════════════════════════════════════════
+
+function getEdgePoint(el, targetCX, targetCY) {
+  const x = el.offsetLeft, y = el.offsetTop, w = el.offsetWidth, h = el.offsetHeight;
+  const cx = x + w/2, cy = y + h/2;
+  const dx = targetCX - cx, dy = targetCY - cy;
+
+  // Pick the edge closest to the target direction
+  if (Math.abs(dx) > Math.abs(dy) * 0.8) {
+    // Horizontal
+    return dx > 0 ? {x: x+w, y: cy} : {x: x, y: cy};
+  } else {
+    // Vertical
+    return dy > 0 ? {x: cx, y: y+h} : {x: cx, y: y};
+  }
+}
+
+function drawConns(svg, v) {
+  svg.querySelectorAll('.conn-glow,.conn-line,.conn-dash,.conn-dot').forEach(e=>e.remove());
+
+  v.connections.forEach(conn => {
+    const fEl = nodes[conn.from], tEl = nodes[conn.to];
+    if (!fEl || !tEl) return;
+
+    const fCX = fEl.offsetLeft + fEl.offsetWidth/2, fCY = fEl.offsetTop + fEl.offsetHeight/2;
+    const tCX = tEl.offsetLeft + tEl.offsetWidth/2, tCY = tEl.offsetTop + tEl.offsetHeight/2;
+
+    let pathD;
+
+    if (conn.type === 'loop') {
+      // Loop-back: EndFrame → ApplyPendingScene (right side, around the outside)
+      const fx = fEl.offsetLeft + fEl.offsetWidth, fy = fCY;
+      const tx = tEl.offsetLeft + tEl.offsetWidth, ty = tCY;
+      const farX = Math.max(fx, tx) + 80;
+      pathD = `M${fx},${fy} C${farX},${fy} ${farX},${ty} ${tx},${ty}`;
+    } else if (conn.type === 'bridge') {
+      // Bridge: Camera → BeginFrame (horizontal curve)
+      const fx = fEl.offsetLeft + fEl.offsetWidth, fy = fCY;
+      const tx = tEl.offsetLeft, ty = tCY;
+      const midX = (fx + tx) / 2;
+      pathD = `M${fx},${fy} C${midX},${fy} ${midX},${ty} ${tx},${ty}`;
+    } else if (conn.type === 'curve') {
+      const f = getEdgePoint(fEl, tCX, tCY);
+      const t = getEdgePoint(tEl, fCX, fCY);
+      const dx = t.x - f.x, dy = t.y - f.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      const off = Math.max(30, dist * 0.35);
+      let cpx, cpy;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        cpx = (f.x + t.x)/2; cpy = Math.min(f.y, t.y) - off;
+      } else {
+        cpx = (dx > 0 ? f.x : t.x) + off; cpy = (f.y + t.y)/2;
+      }
+      pathD = `M${f.x},${f.y} Q${cpx},${cpy} ${t.x},${t.y}`;
+    } else {
+      // Straight
+      const f = getEdgePoint(fEl, tCX, tCY);
+      const t = getEdgePoint(tEl, fCX, fCY);
+      pathD = `M${f.x},${f.y} L${t.x},${t.y}`;
+    }
+
+    // 1) Glow layer
+    const glow = document.createElementNS('http://www.w3.org/2000/svg','path');
+    glow.setAttribute('d', pathD);
+    glow.setAttribute('stroke', conn.color);
+    glow.setAttribute('stroke-width', '6');
+    glow.setAttribute('filter', 'url(#glow)');
+    glow.style.opacity = '0.2';
+    glow.classList.add('conn-glow');
+    svg.appendChild(glow);
+
+    // 2) Solid line
+    const line = document.createElementNS('http://www.w3.org/2000/svg','path');
+    line.setAttribute('d', pathD);
+    line.setAttribute('stroke', conn.color);
+    line.setAttribute('stroke-width', '2');
+    line.setAttribute('marker-end', `url(#a${conn.color.slice(1)})`);
+    line.style.opacity = '0.7';
+    line.classList.add('conn-line');
+    svg.appendChild(line);
+
+    // 3) Animated dash overlay
+    const dash = document.createElementNS('http://www.w3.org/2000/svg','path');
+    dash.setAttribute('d', pathD);
+    dash.setAttribute('stroke', conn.color);
+    dash.setAttribute('stroke-width', '1.5');
+    dash.style.opacity = '0.5';
+    dash.classList.add('conn-dash');
+    dash.style.animationDelay = `${Math.random()*-2}s`;
+    svg.appendChild(dash);
+
+    // 4) Pulsing dot at midpoint
+    const pathEl = document.createElementNS('http://www.w3.org/2000/svg','path');
+    pathEl.setAttribute('d', pathD);
+    const len = pathEl.getTotalLength();
+    if (len > 0) {
+      const mid = pathEl.getPointAtLength(len * 0.5);
+      const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      dot.setAttribute('cx', mid.x);
+      dot.setAttribute('cy', mid.y);
+      dot.setAttribute('r', '3');
+      dot.setAttribute('fill', conn.color);
+      dot.classList.add('conn-dot');
+      dot.style.animationDelay = `${Math.random()*-2.5}s`;
+      svg.appendChild(dot);
+    }
+  });
+}
+
+// ════════════════════════════════════════
+// SIMULATION
+// ════════════════════════════════════════
+
+let simTimer = null;
+let simStep = 0;
+let simSpeed = 800;
+let simOrder = [];
+
+function simStart() {
+  const v = VIEWS[currentView];
+  simOrder = [...v.nodes].sort((a,b) => a.ord - b.ord);
+  simStep = 0;
+  simHighlight();
+  simTimer = setInterval(simAdvance, simSpeed);
+  document.getElementById('simPlay').classList.add('active');
+  document.getElementById('simPlay').innerHTML = '&#9646;&#9646;';
+}
+
+function simStop() {
+  clearInterval(simTimer);
+  simTimer = null;
+  simStep = 0;
+  document.getElementById('simPlay').classList.remove('active');
+  document.getElementById('simPlay').innerHTML = '&#9654;';
+  document.getElementById('simLabel').textContent = '';
+  cvs.querySelectorAll('.node').forEach(n => {
+    n.classList.remove('sim-active','sim-dim');
+  });
+}
+
+function simAdvance() {
+  simStep++;
+  if (simStep >= simOrder.length) simStep = 0;
+  simHighlight();
+}
+
+function simHighlight() {
+  if (!simOrder.length) return;
+  const cur = simOrder[simStep];
+  cvs.querySelectorAll('.node').forEach(n => {
+    const id = n.dataset.id;
+    if (id === cur.id) {
+      n.classList.add('sim-active');
+      n.classList.remove('sim-dim');
+    } else {
+      n.classList.remove('sim-active');
+      n.classList.add('sim-dim');
+    }
+  });
+  document.getElementById('simLabel').innerHTML =
+    `Step <b>${simStep+1}</b> / ${simOrder.length}`;
+
+  // Pan to current node
+  const el = nodes[cur.id];
+  if (el) {
+    const wrapRect = wrap.getBoundingClientRect();
+    const nx = el.offsetLeft + el.offsetWidth/2;
+    const ny = el.offsetTop + el.offsetHeight/2;
+    const targetX = wrapRect.width/2 - nx * zoom;
+    const targetY = wrapRect.height/2 - ny * zoom;
+    panX += (targetX - panX) * 0.3;
+    panY += (targetY - panY) * 0.3;
+    setTransform();
+  }
+}
+
+function simStepForward() {
+  if (!simTimer) {
+    const v = VIEWS[currentView];
+    simOrder = [...v.nodes].sort((a,b) => a.ord - b.ord);
+    if (simStep >= simOrder.length) simStep = -1;
+  }
+  clearInterval(simTimer);
+  simTimer = null;
+  document.getElementById('simPlay').classList.remove('active');
+  document.getElementById('simPlay').innerHTML = '&#9654;';
+  simStep++;
+  if (simStep >= simOrder.length) simStep = 0;
+  simHighlight();
+}
+
+document.getElementById('simPlay').addEventListener('click', () => {
+  if (simTimer) simStop(); else simStart();
+});
+document.getElementById('simStep').addEventListener('click', simStepForward);
+
+document.querySelectorAll('.speed-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.speed-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    simSpeed = parseInt(btn.dataset.spd);
+    if (simTimer) {
+      clearInterval(simTimer);
+      simTimer = setInterval(simAdvance, simSpeed);
+    }
+  });
+});
+
+// ════════════════════════════════════════
+// MINIMAP
+// ════════════════════════════════════════
+
+function updateMinimap() {
+  const v = VIEWS[currentView];
+  if (!v) return;
+  mmInner.innerHTML = '';
+  let mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9;
+  v.nodes.forEach(n=>{
+    mnx=Math.min(mnx,n.x);mny=Math.min(mny,n.y);
+    mxx=Math.max(mxx,n.x+(n.w||160));mxy=Math.max(mxy,n.y+60);
+  });
+  const pad=30,tw=mxx-mnx+pad*2,th=mxy-mny+pad*2;
+  const s=Math.min(160/tw,100/th);
+  v.nodes.forEach(n=>{
+    const d=document.createElement('div');
+    d.className='mm-node';
+    const col={purple:C.purple,blue:C.blue,cyan:C.cyan,green:C.green,orange:C.orange,pink:C.pink}[n.c]||'#888';
+    const nw = (n.w||160)*s, nh = 6;
+    d.style.cssText=`left:${(n.x-mnx+pad)*s}px;top:${(n.y-mny+pad)*s}px;width:${nw}px;height:${nh}px;background:${col}`;
+    mmInner.appendChild(d);
+  });
+  const wr=wrap.getBoundingClientRect();
+  const vp=document.createElement('div');
+  vp.className='mm-vp';
+  vp.style.cssText=`left:${(-panX/zoom-mnx+pad)*s}px;top:${(-panY/zoom-mny+pad)*s}px;width:${wr.width/zoom*s}px;height:${wr.height/zoom*s}px`;
+  mmInner.appendChild(vp);
+}
+
+// ════════════════════════════════════════
+// INTERACTIONS
+// ════════════════════════════════════════
+
+// Pan
+wrap.addEventListener('pointerdown', e => {
+  if (e.target.closest('.node')) return;
+  dragging=true; dragSX=e.clientX; dragSY=e.clientY; panSX=panX; panSY=panY;
+  wrap.classList.add('grabbing');
+});
+window.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  panX = panSX + (e.clientX - dragSX);
+  panY = panSY + (e.clientY - dragSY);
+  setTransform();
+});
+window.addEventListener('pointerup', () => { dragging=false; wrap.classList.remove('grabbing'); });
+
+// Zoom
+wrap.addEventListener('wheel', e => {
+  e.preventDefault();
+  const rect=wrap.getBoundingClientRect();
+  const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+  const old=zoom;
+  zoom = Math.max(0.25, Math.min(3, zoom * (e.deltaY>0?0.92:1.08)));
+  panX = mx-(mx-panX)*(zoom/old);
+  panY = my-(my-panY)*(zoom/old);
+  setTransform();
+},{passive:false});
+
+document.getElementById('zIn').addEventListener('click',()=>{zoom=Math.min(3,zoom*1.2);setTransform()});
+document.getElementById('zOut').addEventListener('click',()=>{zoom=Math.max(0.25,zoom/1.2);setTransform()});
+document.getElementById('zReset').addEventListener('click',resetView);
+
+function resetView(){zoom=1;panX=60;panY=20;setTransform();clearSearch()}
+
+// Tabs
+document.querySelectorAll('.tab').forEach(t=>
+  t.addEventListener('click',()=>{render(t.dataset.v);resetView()})
+);
+
+// Keyboard
+window.addEventListener('keydown', e => {
+  if (document.activeElement===search){if(e.key==='Escape'){search.blur();clearSearch()}return}
+  const vk={'1':'gameloop','2':'architecture','3':'rendering','4':'entities','5':'scene'};
+  if(vk[e.key]){render(vk[e.key]);resetView()}
+  else if(e.key==='Escape'){simStop();resetView()}
+  else if(e.key===' '){e.preventDefault();simTimer?simStop():simStart()}
+  else if(e.key==='ArrowRight'){e.preventDefault();simStepForward()}
+  else if(e.key==='/'){e.preventDefault();search.focus()}
+  else if(e.key==='+'||e.key==='='){zoom=Math.min(3,zoom*1.15);setTransform()}
+  else if(e.key==='-'){zoom=Math.max(0.25,zoom/1.15);setTransform()}
+});
+
+// Search
+search.addEventListener('input', () => {
+  const q = search.value.toLowerCase().trim();
+  if(!q){clearSearch();return}
+  let first=null;
+  cvs.querySelectorAll('.node').forEach(n=>{
+    const hit=n.textContent.toLowerCase().includes(q);
+    n.classList.toggle('hl',hit);
+    n.classList.toggle('dim',!hit);
+    if(hit && !first) first=n;
+  });
+  if(first){
+    const wr=wrap.getBoundingClientRect();
+    panX=wr.width/2-first.offsetLeft*zoom;
+    panY=wr.height/2-first.offsetTop*zoom;
+    setTransform();
+  }
+});
+
+function clearSearch(){
+  search.value='';
+  cvs.querySelectorAll('.node').forEach(n=>n.classList.remove('hl','dim'));
+}
+
+// Background particles
+(function(){
+  const cols=[C.purple,C.blue,C.cyan,C.green];
+  for(let i=0;i<12;i++){
+    const p=document.createElement('div');
+    p.className='particle';
+    p.style.left=Math.random()*100+'%';
+    p.style.top=(50+Math.random()*50)+'%';
+    p.style.background=cols[i%cols.length];
+    p.style.animationDuration=(8+Math.random()*8)+'s';
+    p.style.animationDelay=(Math.random()*10)+'s';
+    const sz=1+Math.random()*2;
+    p.style.width=sz+'px';p.style.height=sz+'px';
+    document.body.appendChild(p);
+  }
+})();
+
+// Resize
+window.addEventListener('resize',()=>{
+  const svg=cvs.querySelector('svg.conns');
+  if(svg) drawConns(svg,VIEWS[currentView]);
+  updateMinimap();
+});
+
+// ════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════
+
+render('gameloop');
+setTransform();
+</script>
+</body>
+</html>

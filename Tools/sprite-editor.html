@@ -1,0 +1,2599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V-Engine Sprite Editor</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #1a1a2e; color: #e0e0e0;
+    display: flex; height: 100vh; overflow: hidden;
+    user-select: none;
+  }
+
+  /* LEFT PANEL */
+  .panel-left {
+    width: 300px; min-width: 300px;
+    background: #16213e; border-right: 2px solid #7c3aed;
+    display: flex; flex-direction: column; overflow-y: auto;
+  }
+  .panel-left h1 {
+    font-size: 1.2rem; padding: 16px;
+    background: linear-gradient(135deg, #7c3aed, #6d28d9);
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .section { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .section-title {
+    font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;
+    color: #7c3aed; font-weight: 700; margin-bottom: 10px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  label { display: block; font-size: 0.85rem; color: #a0a0b8; margin-bottom: 4px; }
+  input[type="number"], input[type="text"], select {
+    width: 100%; padding: 8px 10px; border-radius: 6px;
+    border: 1px solid #333; background: #0f0f23; color: #fff;
+    font-size: 0.9rem; margin-bottom: 10px; outline: none;
+  }
+  input[type="number"]:focus, input[type="text"]:focus { border-color: #7c3aed; }
+
+  .row { display: flex; gap: 8px; }
+  .row > div { flex: 1; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 9px 16px; border-radius: 8px; border: none;
+    font-size: 0.85rem; font-weight: 600; cursor: pointer;
+    transition: all 0.15s; width: 100%;
+  }
+  .btn-primary { background: #7c3aed; color: #fff; }
+  .btn-primary:hover { background: #6d28d9; }
+  .btn-success { background: #10b981; color: #000; }
+  .btn-success:hover { background: #059669; }
+  .btn-danger { background: #ef4444; color: #fff; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-secondary { background: #333; color: #ccc; }
+  .btn-secondary:hover { background: #444; }
+  .btn-sm { padding: 5px 10px; font-size: 0.78rem; width: auto; }
+
+  /* Animation list */
+  .anim-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+  .anim-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; border-radius: 8px;
+    background: rgba(255,255,255,0.04); cursor: pointer;
+    border: 2px solid transparent; transition: all 0.15s;
+  }
+  .anim-item:hover { background: rgba(124,58,237,0.1); }
+  .anim-item.active { border-color: #7c3aed; background: rgba(124,58,237,0.15); }
+  .anim-item .anim-name { flex: 1; font-weight: 600; font-size: 0.9rem; }
+  .anim-item .anim-info { font-size: 0.75rem; color: #888; }
+  .anim-item .delete-btn {
+    background: none; border: none; color: #666; cursor: pointer;
+    font-size: 1rem; padding: 2px 6px; border-radius: 4px;
+  }
+  .anim-item .delete-btn:hover { color: #ef4444; background: rgba(239,68,68,0.1); }
+
+  /* Frame tags with drag reorder */
+  .selected-frames {
+    display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; min-height: 30px;
+    padding: 8px; background: rgba(0,0,0,0.2); border-radius: 6px;
+  }
+  .frame-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px; border-radius: 4px;
+    background: #7c3aed; color: #fff; font-size: 0.75rem; font-weight: 600;
+    cursor: grab; transition: opacity 0.15s, transform 0.15s;
+  }
+  .frame-tag:active { cursor: grabbing; }
+  .frame-tag.dragging { opacity: 0.3; }
+  .frame-tag.drag-over { transform: scale(1.15); background: #6d28d9; }
+  .frame-tag .remove {
+    cursor: pointer; opacity: 0.6; font-size: 0.7rem; margin-left: 2px;
+  }
+  .frame-tag .remove:hover { opacity: 1; }
+
+  .checkbox-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  }
+  .checkbox-row input[type="checkbox"] { accent-color: #7c3aed; }
+  .checkbox-row label { margin: 0; }
+
+  /* CENTER - Canvas */
+  .panel-center {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden;
+  }
+  .toolbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 16px; background: #0f0f23;
+    border-bottom: 1px solid #333; font-size: 0.85rem;
+  }
+  .toolbar .info { color: #888; }
+  .toolbar .zoom-controls { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+  .toolbar button {
+    padding: 4px 10px; border-radius: 4px; border: 1px solid #444;
+    background: #222; color: #ccc; cursor: pointer; font-size: 0.85rem;
+  }
+  .toolbar button:hover { background: #333; }
+  .toolbar .help-btn {
+    padding: 4px 10px; border-radius: 4px; border: 1px solid #444;
+    background: #222; color: #7c3aed; cursor: pointer; font-size: 0.85rem;
+    font-weight: 700;
+  }
+  .toolbar .help-btn:hover { background: #333; }
+
+  .canvas-area {
+    flex: 1; overflow: auto; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    background: repeating-conic-gradient(#1a1a2e 0% 25%, #222240 0% 50%) 50% / 20px 20px;
+  }
+  .canvas-area canvas { image-rendering: pixelated; cursor: crosshair; }
+  .canvas-area.panning { cursor: grabbing !important; }
+  .canvas-area.panning canvas { cursor: grabbing !important; }
+
+  /* DROP ZONE */
+  .drop-zone {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 16px;
+    border: 3px dashed #444; border-radius: 16px;
+    padding: 60px; color: #666; text-align: center;
+    transition: all 0.3s;
+  }
+  .drop-zone.dragover { border-color: #7c3aed; color: #7c3aed; background: rgba(124,58,237,0.05); }
+  .drop-zone .icon { font-size: 3rem; }
+
+  /* RIGHT PANEL - Preview */
+  .panel-right {
+    width: 280px; min-width: 280px;
+    background: #16213e; border-left: 2px solid #7c3aed;
+    display: flex; flex-direction: column;
+  }
+  .preview-header {
+    padding: 12px 16px; font-weight: 700; font-size: 0.9rem;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    color: #7c3aed; text-transform: uppercase; letter-spacing: 1px;
+  }
+  .preview-canvas-wrap {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    min-height: 200px; position: relative;
+  }
+  .preview-canvas-wrap canvas { image-rendering: pixelated; position: relative; z-index: 1; }
+  .preview-bg-checkered { background: repeating-conic-gradient(#1a1a2e 0% 25%, #222240 0% 50%) 50% / 16px 16px; }
+  .preview-bg-black { background: #000; }
+  .preview-bg-white { background: #fff; }
+  .preview-bg-magenta { background: #ff00ff; }
+  .preview-controls { padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.06); }
+  .frame-display {
+    text-align: center; padding: 8px; font-size: 0.85rem; color: #888;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .preview-mode-bar {
+    display: flex; gap: 4px; padding: 8px 16px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .preview-mode-btn {
+    flex: 1; padding: 5px 8px; border-radius: 4px; border: 1px solid #444;
+    background: #222; color: #888; cursor: pointer; font-size: 0.75rem;
+    text-align: center; font-weight: 600; transition: all 0.15s;
+  }
+  .preview-mode-btn.active { border-color: #7c3aed; color: #7c3aed; background: rgba(124,58,237,0.15); }
+  .preview-mode-btn.active[data-mode="damage"] { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,0.15); }
+  .preview-mode-btn:hover { background: #333; }
+
+  /* Background color swatches */
+  .bg-swatches { display: flex; gap: 6px; margin-top: 8px; }
+  .bg-swatch {
+    width: 24px; height: 24px; border-radius: 4px; cursor: pointer;
+    border: 2px solid transparent; transition: border-color 0.15s;
+  }
+  .bg-swatch.active { border-color: #7c3aed; }
+  .bg-swatch:hover { border-color: #aaa; }
+
+  /* Context menu */
+  .context-menu {
+    position: fixed; background: #1e1e3a; border: 1px solid #444;
+    border-radius: 8px; padding: 4px 0; min-width: 150px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 200;
+  }
+  .context-item {
+    padding: 8px 16px; cursor: pointer; font-size: 0.85rem;
+    transition: background 0.1s;
+  }
+  .context-item:hover { background: rgba(124,58,237,0.2); }
+  .context-item.danger { color: #ef4444; }
+  .context-item.danger:hover { background: rgba(239,68,68,0.15); }
+  .context-separator { height: 1px; background: #333; margin: 4px 0; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 300; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .modal-overlay.show { opacity: 1; pointer-events: auto; }
+  .modal {
+    background: #16213e; border: 2px solid #7c3aed; border-radius: 12px;
+    padding: 24px; max-width: 500px; width: 90%;
+    max-height: 80vh; overflow-y: auto;
+  }
+  .modal h2 { font-size: 1.1rem; color: #7c3aed; margin-bottom: 16px; }
+  .modal .shortcut-row {
+    display: flex; justify-content: space-between; padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 0.85rem;
+  }
+  .modal .shortcut-row:last-child { border-bottom: none; }
+  .modal .shortcut-key {
+    background: #0f0f23; padding: 2px 8px; border-radius: 4px;
+    font-family: monospace; color: #7c3aed; font-weight: 600;
+  }
+  .modal .shortcut-section {
+    font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;
+    color: #666; margin-top: 14px; margin-bottom: 6px; font-weight: 700;
+  }
+  .modal .close-btn {
+    position: absolute; top: 12px; right: 16px;
+    background: none; border: none; color: #888; font-size: 1.2rem;
+    cursor: pointer;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 20px; right: 20px;
+    padding: 12px 20px; border-radius: 8px;
+    background: #10b981; color: #000; font-weight: 600;
+    font-size: 0.9rem; opacity: 0;
+    transition: opacity 0.3s; pointer-events: none; z-index: 100;
+  }
+  .toast.show { opacity: 1; }
+
+  /* Sheet tabs */
+  .sheet-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+  .sheet-tab {
+    padding: 5px 10px; border-radius: 6px; border: 1px solid #444;
+    background: #222; color: #888; cursor: pointer; font-size: 0.75rem;
+    font-weight: 600; transition: all 0.15s; max-width: 120px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .sheet-tab.active { border-color: #7c3aed; color: #7c3aed; background: rgba(124,58,237,0.15); }
+  .sheet-tab:hover { background: #333; }
+  .sheet-tab .close-tab {
+    margin-left: 4px; opacity: 0.5; cursor: pointer; font-size: 0.7rem;
+  }
+  .sheet-tab .close-tab:hover { opacity: 1; color: #ef4444; }
+
+  /* Copy/paste buttons inline */
+  .copy-paste-row { display: flex; gap: 4px; margin-top: 6px; }
+
+  #fileInput, #importInput, #addSheetInput { display: none; }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="fileInput" accept="image/*" />
+<input type="file" id="importInput" accept=".json" />
+<input type="file" id="addSheetInput" accept="image/*" />
+
+<!-- CONTEXT MENU -->
+<div class="context-menu" id="contextMenu" style="display:none;">
+  <div class="context-item" id="ctxRename">Rename</div>
+  <div class="context-item" id="ctxDuplicate">Duplicate</div>
+  <div class="context-separator"></div>
+  <div class="context-item danger" id="ctxDelete">Delete</div>
+</div>
+
+<!-- SHORTCUTS MODAL -->
+<div class="modal-overlay" id="shortcutsModal">
+  <div class="modal" style="position:relative;">
+    <button class="close-btn" onclick="toggleShortcuts()">&times;</button>
+    <h2>Keyboard Shortcuts</h2>
+    <div class="shortcut-section">General</div>
+    <div class="shortcut-row"><span>Undo</span><span class="shortcut-key">Ctrl+Z</span></div>
+    <div class="shortcut-row"><span>Redo</span><span class="shortcut-key">Ctrl+Y</span></div>
+    <div class="shortcut-row"><span>Zoom in / out</span><span class="shortcut-key">+ / -</span></div>
+    <div class="shortcut-row"><span>Zoom (canvas)</span><span class="shortcut-key">Scroll wheel</span></div>
+    <div class="shortcut-row"><span>Pan canvas</span><span class="shortcut-key">Middle-click drag</span></div>
+    <div class="shortcut-row"><span>Show shortcuts</span><span class="shortcut-key">?</span></div>
+    <div class="shortcut-section">Preview</div>
+    <div class="shortcut-row"><span>Play / Pause</span><span class="shortcut-key">Space</span></div>
+    <div class="shortcut-row"><span>Step backward / forward</span><span class="shortcut-key">&larr; / &rarr;</span></div>
+    <div class="shortcut-section">Frame Selection</div>
+    <div class="shortcut-row"><span>Toggle frame</span><span class="shortcut-key">Click on canvas</span></div>
+    <div class="shortcut-row"><span>Select range</span><span class="shortcut-key">Shift+Click</span></div>
+    <div class="shortcut-section">Animation List</div>
+    <div class="shortcut-row"><span>Rename / Duplicate / Delete</span><span class="shortcut-key">Right-click</span></div>
+  </div>
+</div>
+
+<!-- LEFT PANEL -->
+<div class="panel-left">
+  <h1><span style="font-size:1.4rem;">V</span> Sprite Editor</h1>
+
+  <div class="section">
+    <div class="section-title">Spritesheets</div>
+    <div class="sheet-tabs" id="sheetTabs"></div>
+    <div class="row" style="gap:4px;">
+      <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">Load Image</button>
+      <button class="btn btn-secondary btn-sm" id="addSheetBtn" style="display:none; width:auto; padding:9px 12px;" onclick="document.getElementById('addSheetInput').click()">+</button>
+    </div>
+    <div id="imageInfo" style="margin-top:8px; font-size:0.8rem; color:#888;"></div>
+  </div>
+
+  <div class="section" id="gridSection" style="display:none;">
+    <div class="section-title">Frame Grid</div>
+    <div class="row">
+      <div>
+        <label>Frame Width</label>
+        <input type="number" id="frameW" value="32" min="1" onchange="updateGrid()" />
+      </div>
+      <div>
+        <label>Frame Height</label>
+        <input type="number" id="frameH" value="32" min="1" onchange="updateGrid()" />
+      </div>
+    </div>
+    <div id="gridInfo" style="font-size:0.8rem; color:#888;"></div>
+    <button class="btn btn-secondary" style="margin-top:8px;" onclick="autoDetectGrid()">Auto-Detect Grid</button>
+  </div>
+
+  <div class="section" id="animSection" style="display:none;">
+    <div class="section-title">Animations</div>
+    <div class="anim-list" id="animList"></div>
+    <div class="row" style="gap:6px;">
+      <input type="text" id="newAnimName" placeholder="Animation name..." style="margin:0;"
+             onkeydown="if(event.key==='Enter')addAnimation()" />
+      <button class="btn btn-primary btn-sm" onclick="addAnimation()" style="white-space:nowrap;">+ Add</button>
+    </div>
+  </div>
+
+  <div class="section" id="animEditSection" style="display:none;">
+    <div class="section-title">
+      Edit: <span id="editAnimName"></span>
+      <button class="btn btn-secondary btn-sm" onclick="duplicateAnimation(activeAnimIdx)" style="width:auto;">Duplicate</button>
+    </div>
+    <p style="font-size:0.8rem; color:#888; margin-bottom:4px;">Click frames on spritesheet. Shift+click for range. Drag tags to reorder.</p>
+    <div class="selected-frames" id="selectedFrames"></div>
+    <div style="margin-top:10px;">
+      <div class="row">
+        <div>
+          <label>FPS</label>
+          <input type="number" id="animFps" value="10" min="1" max="60" onchange="updateAnimProp('fps')" />
+        </div>
+        <div style="display:flex; flex-direction:column; justify-content:flex-end; gap:4px; padding-bottom:10px;">
+          <div class="checkbox-row" style="margin:0;">
+            <input type="checkbox" id="animLooped" checked onchange="updateAnimProp('looped')" />
+            <label for="animLooped">Looped</label>
+          </div>
+          <div class="checkbox-row" style="margin:0;">
+            <input type="checkbox" id="animPingPong" onchange="updateAnimProp('pingPong')" />
+            <label for="animPingPong">Ping-pong</label>
+          </div>
+        </div>
+      </div>
+      <div class="row" style="gap:4px;">
+        <button class="btn btn-secondary btn-sm" onclick="selectAllFrames()">Select All</button>
+        <button class="btn btn-secondary btn-sm" onclick="reverseFrames()">Reverse</button>
+        <button class="btn btn-secondary btn-sm" onclick="clearFrames()">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="hitboxSection" style="display:none;">
+    <div class="section-title">
+      Hitbox
+      <div class="checkbox-row" style="margin:0;">
+        <input type="checkbox" id="hitboxEnabled" onchange="updateHitbox()" />
+        <label for="hitboxEnabled" style="font-size:0.75rem;">Enabled</label>
+      </div>
+    </div>
+    <div id="hitboxFields" style="display:none;">
+      <div class="row">
+        <div><label>X</label><input type="number" id="hitboxX" value="0" onchange="updateHitbox()" /></div>
+        <div><label>Y</label><input type="number" id="hitboxY" value="0" onchange="updateHitbox()" /></div>
+      </div>
+      <div class="row">
+        <div><label>W</label><input type="number" id="hitboxW" value="0" onchange="updateHitbox()" /></div>
+        <div><label>H</label><input type="number" id="hitboxH" value="0" onchange="updateHitbox()" /></div>
+      </div>
+      <p style="font-size:0.75rem; color:#666;">Use preview Hitbox mode to draw visually.</p>
+      <div class="copy-paste-row">
+        <button class="btn btn-secondary btn-sm" onclick="copyHitbox()">Copy</button>
+        <button class="btn btn-secondary btn-sm" onclick="pasteHitbox()">Paste</button>
+        <button class="btn btn-secondary btn-sm" onclick="applyHitboxToAll()">All</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="originSection" style="display:none;">
+    <div class="section-title">Origin Point</div>
+    <div class="row">
+      <div><label>X</label><input type="number" id="originX" value="0" onchange="updateOrigin()" /></div>
+      <div><label>Y</label><input type="number" id="originY" value="0" onchange="updateOrigin()" /></div>
+    </div>
+    <p style="font-size:0.75rem; color:#666;">Click preview in Origin mode to set visually.</p>
+    <div class="copy-paste-row">
+      <button class="btn btn-secondary btn-sm" onclick="copyOrigin()">Copy</button>
+      <button class="btn btn-secondary btn-sm" onclick="pasteOrigin()">Paste</button>
+      <button class="btn btn-secondary btn-sm" onclick="applyOriginToAll()">All</button>
+    </div>
+  </div>
+
+  <div class="section" id="damageBoxSection" style="display:none;">
+    <div class="section-title" style="color:#ef4444;">
+      Damage Box
+      <div class="checkbox-row" style="margin:0;">
+        <input type="checkbox" id="damageBoxEnabled" onchange="updateDamageBox()" style="accent-color:#ef4444;" />
+        <label for="damageBoxEnabled" style="font-size:0.75rem;">Enabled</label>
+      </div>
+    </div>
+    <div id="damageBoxFields" style="display:none;">
+      <div class="row">
+        <div><label>X</label><input type="number" id="damageBoxX" value="0" onchange="updateDamageBox()" /></div>
+        <div><label>Y</label><input type="number" id="damageBoxY" value="0" onchange="updateDamageBox()" /></div>
+      </div>
+      <div class="row">
+        <div><label>W</label><input type="number" id="damageBoxW" value="0" onchange="updateDamageBox()" /></div>
+        <div><label>H</label><input type="number" id="damageBoxH" value="0" onchange="updateDamageBox()" /></div>
+      </div>
+      <p style="font-size:0.75rem; color:#666;">Use preview Damage mode to draw visually.</p>
+      <div class="copy-paste-row">
+        <button class="btn btn-secondary btn-sm" onclick="copyDamageBox()">Copy</button>
+        <button class="btn btn-secondary btn-sm" onclick="pasteDamageBox()">Paste</button>
+        <button class="btn btn-secondary btn-sm" onclick="applyDamageBoxToAll()">All</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="exportSection" style="display:none;">
+    <div class="section-title">Export</div>
+    <label>Sprite Name</label>
+    <input type="text" id="spriteName" placeholder="player" />
+    <button class="btn btn-success" onclick="exportJSON()">Export .json</button>
+    <button class="btn btn-success" style="margin-top:4px; background:#0d9488;" onclick="batchExportAll()" id="batchExportBtn" style="display:none;">Export All Sheets</button>
+    <div class="row" style="margin-top:6px; gap:4px;">
+      <button class="btn btn-secondary" onclick="importJSON()">Import .json</button>
+      <button class="btn btn-danger btn-sm" onclick="newProject()" style="width:auto; padding:9px 12px;">New</button>
+    </div>
+  </div>
+</div>
+
+<!-- CENTER - Canvas -->
+<div class="panel-center">
+  <div class="toolbar" id="toolbar" style="display:none;">
+    <span class="info" id="cursorInfo">-</span>
+    <span class="info" id="frameHoverInfo">-</span>
+    <div class="zoom-controls">
+      <button onclick="setZoom(zoom - 1)">-</button>
+      <span id="zoomLevel">2x</span>
+      <button onclick="setZoom(zoom + 1)">+</button>
+      <button onclick="setZoom(2)">Reset</button>
+      <button onclick="fitToView()">Fit</button>
+      <button class="help-btn" onclick="toggleShortcuts()">?</button>
+    </div>
+  </div>
+  <div class="canvas-area" id="canvasArea">
+    <div class="drop-zone" id="dropZone">
+      <div class="icon">&#x1F5BC;</div>
+      <p>Drop a spritesheet here</p>
+      <small>or click "Load Image" on the left</small>
+    </div>
+    <canvas id="mainCanvas" style="display:none;"></canvas>
+  </div>
+</div>
+
+<!-- RIGHT PANEL - Preview -->
+<div class="panel-right">
+  <div class="preview-header">Animation Preview</div>
+  <div class="preview-mode-bar" id="previewModeBar" style="display:none;">
+    <div class="preview-mode-btn active" data-mode="view" onclick="setPreviewMode('view')">View</div>
+    <div class="preview-mode-btn" data-mode="hitbox" onclick="setPreviewMode('hitbox')">Hitbox</div>
+    <div class="preview-mode-btn" data-mode="damage" onclick="setPreviewMode('damage')">Damage</div>
+    <div class="preview-mode-btn" data-mode="origin" onclick="setPreviewMode('origin')">Origin</div>
+  </div>
+  <div class="preview-canvas-wrap preview-bg-checkered" id="previewWrap">
+    <canvas id="previewCanvas" width="128" height="128"></canvas>
+  </div>
+  <div class="frame-display" id="previewInfo">No animation selected</div>
+  <div class="preview-controls">
+    <div class="row" style="margin-bottom:8px;">
+      <button class="btn btn-secondary btn-sm" id="playBtn" onclick="togglePreview()">Play</button>
+      <button class="btn btn-secondary btn-sm" onclick="previewStep(-1)">Prev</button>
+      <button class="btn btn-secondary btn-sm" onclick="previewStep(1)">Next</button>
+    </div>
+    <div class="row" style="margin-bottom:8px;">
+      <div>
+        <label>Preview Scale</label>
+        <select id="previewScale" onchange="updatePreviewScale()">
+          <option value="1">1x</option>
+          <option value="2" selected>2x</option>
+          <option value="3">3x</option>
+          <option value="4">4x</option>
+          <option value="6">6x</option>
+          <option value="8">8x</option>
+        </select>
+      </div>
+    </div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="onionSkin" />
+      <label for="onionSkin">Onion skinning</label>
+    </div>
+    <label style="margin-bottom:6px;">Background</label>
+    <div class="bg-swatches">
+      <div class="bg-swatch active" data-bg="checkered" onclick="setPreviewBg('checkered')"
+           style="background: repeating-conic-gradient(#666 0% 25%, #999 0% 50%) 50% / 8px 8px;"></div>
+      <div class="bg-swatch" data-bg="black" onclick="setPreviewBg('black')" style="background:#000;"></div>
+      <div class="bg-swatch" data-bg="white" onclick="setPreviewBg('white')" style="background:#fff;"></div>
+      <div class="bg-swatch" data-bg="magenta" onclick="setPreviewBg('magenta')" style="background:#ff00ff;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+// Multi-sheet support
+let sheets = []; // [{ image, fileName, dataURL, frameW, frameH, cols, rows, totalFrames }]
+let activeSheetIdx = -1;
+
+// Active sheet shortcuts (updated when switching sheets)
+let image = null;
+let imageFileName = '';
+let imageDataURL = '';
+let frameW = 32, frameH = 32;
+let cols = 0, rows = 0, totalFrames = 0;
+let zoom = 2;
+let animations = []; // { name, sheetIdx, frames[], fps, looped, pingPong, hitbox, origin, damageBox }
+
+// Copy/paste clipboard
+let clipboardHitbox = null;
+let clipboardOrigin = null;
+let clipboardDamageBox = null;
+let activeAnimIdx = -1;
+let previewPlaying = false;
+let previewFrame = 0;
+let previewTimer = null;
+let previewScale = 2;
+let previewMode = 'view'; // 'view' | 'hitbox' | 'origin' | 'damage'
+
+// Pan state
+let isPanning = false;
+let panStartX = 0, panStartY = 0;
+let scrollStartX = 0, scrollStartY = 0;
+
+// Shift-click range
+let lastClickedFrame = -1;
+
+// Undo/Redo
+const undoStack = [];
+const redoStack = [];
+const MAX_UNDO = 50;
+
+// Hitbox interaction
+let hitboxAction = null;   // 'draw' | 'move' | 'resize-nw' | 'resize-n' | ... | 'resize-w'
+let hitboxDragStart = null; // { x, y } frame coords at drag start
+let hitboxOriginal = null;  // copy of hitbox at drag start
+
+// DamageBox interaction
+let damageBoxAction = null;
+let damageBoxDragStart = null;
+let damageBoxOriginal = null;
+
+// Context menu
+let contextAnimIdx = -1;
+
+// Drag reorder
+let dragFromIdx = -1;
+
+// ============================================================
+// DOM REFERENCES
+// ============================================================
+const mainCanvas = document.getElementById('mainCanvas');
+const mainCtx = mainCanvas.getContext('2d');
+const previewCanvas = document.getElementById('previewCanvas');
+const previewCtx = previewCanvas.getContext('2d');
+const canvasArea = document.getElementById('canvasArea');
+const dropZone = document.getElementById('dropZone');
+const contextMenu = document.getElementById('contextMenu');
+
+// ============================================================
+// FILE LOADING
+// ============================================================
+canvasArea.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+canvasArea.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+canvasArea.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) loadImageFile(file);
+});
+
+function loadImageFile(file) {
+  if (sheets.length === 0) {
+    addSheet(file);
+  } else {
+    // Replace current sheet image
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        sheets[activeSheetIdx].image = img;
+        sheets[activeSheetIdx].fileName = file.name;
+        sheets[activeSheetIdx].dataURL = ev.target.result;
+        switchSheet(activeSheetIdx);
+        autoDetectGrid();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function loadImageFromDataURL(dataURL) {
+  const img = new Image();
+  img.onload = () => {
+    image = img;
+    dropZone.style.display = 'none';
+    mainCanvas.style.display = 'block';
+    document.getElementById('toolbar').style.display = 'flex';
+    document.getElementById('gridSection').style.display = 'block';
+    document.getElementById('animSection').style.display = 'block';
+    document.getElementById('exportSection').style.display = 'block';
+    document.getElementById('imageInfo').textContent = `${img.width}x${img.height} - ${imageFileName}`;
+    if (animations.length === 0) autoDetectGrid();
+    else updateGrid();
+    drawMain();
+  };
+  img.src = dataURL;
+}
+
+// ============================================================
+// GRID
+// ============================================================
+function autoDetectGrid() {
+  if (!image) return;
+  const w = image.width, h = image.height;
+
+  // Read pixel data for alpha analysis
+  const tc = document.createElement('canvas');
+  tc.width = w; tc.height = h;
+  const tctx = tc.getContext('2d');
+  tctx.drawImage(image, 0, 0);
+  const px = tctx.getImageData(0, 0, w, h).data;
+
+  // Column alpha density (0 = fully transparent, 1 = fully opaque)
+  const colDensity = new Float32Array(w);
+  for (let x = 0; x < w; x++) {
+    let sum = 0;
+    for (let y = 0; y < h; y++) sum += px[(y * w + x) * 4 + 3];
+    colDensity[x] = sum / (h * 255);
+  }
+
+  // Row alpha density
+  const rowDensity = new Float32Array(h);
+  for (let y = 0; y < h; y++) {
+    let sum = 0;
+    for (let x = 0; x < w; x++) sum += px[(y * w + x) * 4 + 3];
+    rowDensity[y] = sum / (w * 255);
+  }
+
+  const bestW = findBestFrameSize(colDensity, w, h);
+  const bestH = findBestFrameSize(rowDensity, h, w);
+
+  document.getElementById('frameW').value = bestW;
+  document.getElementById('frameH').value = bestH;
+  updateGrid();
+
+  const fc = Math.floor(w / bestW), fr = Math.floor(h / bestH);
+  toast(`Detected ${bestW}x${bestH} (${fc * fr} frames)`);
+}
+
+function findBestFrameSize(density, totalSize, otherDim) {
+  // Gather candidate sizes (divisors of totalSize)
+  const candidates = [];
+  for (let size = 8; size <= totalSize && size <= 512; size++) {
+    if (totalSize % size !== 0) continue;
+    candidates.push(size);
+  }
+  if (candidates.length === 0) return totalSize;
+
+  let bestSize = totalSize;
+  let bestScore = -Infinity;
+
+  for (const size of candidates) {
+    const count = totalSize / size;
+    if (count > 100) continue;
+    let score = 0;
+
+    // 1. Boundary alignment: frame boundaries should fall on low-alpha areas
+    if (count > 1) {
+      let boundaryScore = 0;
+      for (let i = 1; i < count; i++) {
+        const b = i * size;
+        // Check a few pixels around each boundary
+        const range = Math.max(1, Math.min(3, Math.floor(size * 0.05)));
+        let minD = 1;
+        for (let d = -range; d <= range; d++) {
+          const idx = b + d;
+          if (idx >= 0 && idx < totalSize) minD = Math.min(minD, density[idx]);
+        }
+        boundaryScore += (1 - minD);
+      }
+      score += (boundaryScore / (count - 1)) * 40;
+    }
+
+    // 2. Content: frame centers should have visible content
+    let contentScore = 0;
+    for (let i = 0; i < count; i++) {
+      const center = Math.floor(i * size + size / 2);
+      if (center < totalSize) contentScore += density[center];
+    }
+    score += (contentScore / count) * 30;
+
+    // 3. Aspect ratio: prefer frames in a reasonable range relative to other dimension
+    const ratio = size / otherDim;
+    if (ratio >= 0.5 && ratio <= 2.0) score += 15;
+    else if (ratio >= 0.25 && ratio <= 4.0) score += 5;
+
+    // 4. Reasonable frame count
+    if (count >= 2 && count <= 30) score += 10;
+    else if (count === 1) score += 5;
+
+    // 5. Full dimension bonus for short sides (single row/column sheets)
+    if (size === totalSize && totalSize <= 256) score += 8;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestSize = size;
+    }
+  }
+
+  return bestSize;
+}
+
+function updateGrid() {
+  if (!image) return;
+  frameW = parseInt(document.getElementById('frameW').value) || 1;
+  frameH = parseInt(document.getElementById('frameH').value) || 1;
+  cols = Math.floor(image.width / frameW);
+  rows = Math.floor(image.height / frameH);
+  totalFrames = cols * rows;
+  document.getElementById('gridInfo').textContent = `${cols} cols x ${rows} rows = ${totalFrames} frames`;
+  drawMain();
+  autoSave();
+}
+
+// ============================================================
+// ZOOM & PAN
+// ============================================================
+function setZoom(z) {
+  zoom = Math.max(1, Math.min(16, z));
+  document.getElementById('zoomLevel').textContent = zoom + 'x';
+  drawMain();
+}
+
+function fitToView() {
+  if (!image) return;
+  const area = canvasArea.getBoundingClientRect();
+  const zx = Math.floor(area.width / image.width);
+  const zy = Math.floor(area.height / image.height);
+  setZoom(Math.max(1, Math.min(zx, zy)));
+}
+
+// Middle-click pan
+canvasArea.addEventListener('mousedown', e => {
+  if (e.button === 1) {
+    e.preventDefault();
+    isPanning = true;
+    panStartX = e.clientX;
+    panStartY = e.clientY;
+    scrollStartX = canvasArea.scrollLeft;
+    scrollStartY = canvasArea.scrollTop;
+    canvasArea.classList.add('panning');
+  }
+});
+window.addEventListener('mousemove', e => {
+  if (isPanning) {
+    canvasArea.scrollLeft = scrollStartX - (e.clientX - panStartX);
+    canvasArea.scrollTop = scrollStartY - (e.clientY - panStartY);
+  }
+});
+window.addEventListener('mouseup', e => {
+  if (isPanning) { isPanning = false; canvasArea.classList.remove('panning'); }
+});
+
+// Scroll wheel zoom
+canvasArea.addEventListener('wheel', e => {
+  if (!image) return;
+  e.preventDefault();
+  if (e.deltaY < 0) setZoom(zoom + 1);
+  else setZoom(zoom - 1);
+}, { passive: false });
+
+// ============================================================
+// MAIN CANVAS DRAWING
+// ============================================================
+function drawMain() {
+  if (!image) return;
+  const w = image.width * zoom;
+  const h = image.height * zoom;
+  mainCanvas.width = w;
+  mainCanvas.height = h;
+  mainCtx.imageSmoothingEnabled = false;
+  mainCtx.drawImage(image, 0, 0, w, h);
+
+  // Grid lines
+  mainCtx.strokeStyle = 'rgba(124, 58, 237, 0.5)';
+  mainCtx.lineWidth = 1;
+  for (let x = 0; x <= image.width; x += frameW) {
+    mainCtx.beginPath();
+    mainCtx.moveTo(x * zoom + 0.5, 0);
+    mainCtx.lineTo(x * zoom + 0.5, h);
+    mainCtx.stroke();
+  }
+  for (let y = 0; y <= image.height; y += frameH) {
+    mainCtx.beginPath();
+    mainCtx.moveTo(0, y * zoom + 0.5);
+    mainCtx.lineTo(w, y * zoom + 0.5);
+    mainCtx.stroke();
+  }
+
+  // Highlight selected frames for active animation
+  if (activeAnimIdx >= 0 && animations[activeAnimIdx]) {
+    const anim = animations[activeAnimIdx];
+    anim.frames.forEach((f, idx) => {
+      const fc = f % cols;
+      const fr = Math.floor(f / cols);
+      const x = fc * frameW * zoom;
+      const y = fr * frameH * zoom;
+
+      mainCtx.fillStyle = 'rgba(124, 58, 237, 0.25)';
+      mainCtx.fillRect(x + 1, y + 1, frameW * zoom - 2, frameH * zoom - 2);
+
+      mainCtx.strokeStyle = '#7c3aed';
+      mainCtx.lineWidth = 2;
+      mainCtx.strokeRect(x + 1, y + 1, frameW * zoom - 2, frameH * zoom - 2);
+
+      // Frame order number
+      const fontSize = Math.max(10, 12 * zoom / 2);
+      mainCtx.fillStyle = '#fff';
+      mainCtx.font = `bold ${fontSize}px sans-serif`;
+      mainCtx.fillText(idx.toString(), x + 4, y + fontSize + 2);
+    });
+  }
+
+  // Light frame numbers for unselected
+  const smallFont = Math.max(8, 10 * zoom / 2);
+  mainCtx.font = `${smallFont}px sans-serif`;
+  for (let i = 0; i < totalFrames; i++) {
+    if (activeAnimIdx >= 0 && animations[activeAnimIdx]?.frames.includes(i)) continue;
+    const fc = i % cols;
+    const fr = Math.floor(i / cols);
+    mainCtx.fillStyle = 'rgba(255,255,255,0.15)';
+    mainCtx.fillText(i.toString(), fc * frameW * zoom + 3, (fr + 1) * frameH * zoom - 4);
+  }
+}
+
+// ============================================================
+// CANVAS CLICK - FRAME SELECTION
+// ============================================================
+mainCanvas.addEventListener('click', e => {
+  if (activeAnimIdx < 0 || !image) return;
+  const rect = mainCanvas.getBoundingClientRect();
+  const x = Math.floor((e.clientX - rect.left) / zoom);
+  const y = Math.floor((e.clientY - rect.top) / zoom);
+  const fc = Math.floor(x / frameW);
+  const fr = Math.floor(y / frameH);
+  if (fc >= cols || fr >= rows || fc < 0 || fr < 0) return;
+  const frameIdx = fr * cols + fc;
+
+  pushUndo();
+  const anim = animations[activeAnimIdx];
+
+  if (e.shiftKey && lastClickedFrame >= 0) {
+    // Range selection
+    const from = lastClickedFrame;
+    const to = frameIdx;
+    const step = from <= to ? 1 : -1;
+    for (let i = from; i !== to + step; i += step) {
+      if (i >= 0 && i < totalFrames && !anim.frames.includes(i)) {
+        anim.frames.push(i);
+      }
+    }
+  } else {
+    // Toggle single frame
+    const existing = anim.frames.indexOf(frameIdx);
+    if (existing >= 0) {
+      anim.frames.splice(existing, 1);
+    } else {
+      anim.frames.push(frameIdx);
+    }
+  }
+
+  lastClickedFrame = frameIdx;
+  renderSelectedFrames();
+  drawMain();
+  restartPreview();
+  autoSave();
+});
+
+mainCanvas.addEventListener('mousemove', e => {
+  if (!image) return;
+  const rect = mainCanvas.getBoundingClientRect();
+  const x = Math.floor((e.clientX - rect.left) / zoom);
+  const y = Math.floor((e.clientY - rect.top) / zoom);
+  document.getElementById('cursorInfo').textContent = `(${x}, ${y})`;
+  const fc = Math.floor(x / frameW);
+  const fr = Math.floor(y / frameH);
+  if (fc >= 0 && fc < cols && fr >= 0 && fr < rows) {
+    document.getElementById('frameHoverInfo').textContent = `Frame ${fr * cols + fc} (col ${fc}, row ${fr})`;
+  }
+});
+
+// ============================================================
+// ANIMATIONS - CRUD
+// ============================================================
+function addAnimation() {
+  const input = document.getElementById('newAnimName');
+  const name = input.value.trim();
+  if (!name) return;
+  if (animations.find(a => a.name === name)) { toast('Name already exists'); return; }
+  pushUndo();
+  animations.push({ name, frames: [], fps: 10, looped: true, pingPong: false, hitbox: null, origin: null, damageBox: null });
+  input.value = '';
+  renderAnimList();
+  selectAnimation(animations.length - 1);
+  autoSave();
+}
+
+function deleteAnimation(idx) {
+  pushUndo();
+  animations.splice(idx, 1);
+  if (activeAnimIdx >= animations.length) activeAnimIdx = animations.length - 1;
+  selectAnimation(activeAnimIdx);
+  renderAnimList();
+  autoSave();
+}
+
+function renameAnimation(idx) {
+  const anim = animations[idx];
+  const newName = prompt('Rename animation:', anim.name);
+  if (!newName || newName.trim() === '' || newName.trim() === anim.name) return;
+  if (animations.find((a, i) => i !== idx && a.name === newName.trim())) {
+    toast('Name already exists');
+    return;
+  }
+  pushUndo();
+  anim.name = newName.trim();
+  renderAnimList();
+  if (idx === activeAnimIdx) {
+    document.getElementById('editAnimName').textContent = anim.name;
+  }
+  autoSave();
+}
+
+function duplicateAnimation(idx) {
+  if (idx < 0 || idx >= animations.length) return;
+  pushUndo();
+  const src = animations[idx];
+  let newName = src.name + ' copy';
+  let counter = 2;
+  while (animations.find(a => a.name === newName)) {
+    newName = src.name + ' copy ' + counter++;
+  }
+  animations.push({
+    name: newName,
+    frames: [...src.frames],
+    fps: src.fps,
+    looped: src.looped,
+    pingPong: src.pingPong,
+    hitbox: src.hitbox ? { ...src.hitbox } : null,
+    origin: src.origin ? { ...src.origin } : null,
+    damageBox: src.damageBox ? { ...src.damageBox } : null
+  });
+  renderAnimList();
+  selectAnimation(animations.length - 1);
+  autoSave();
+}
+
+function selectAnimation(idx) {
+  activeAnimIdx = idx;
+  lastClickedFrame = -1;
+  renderAnimList();
+
+  const hasAnim = idx >= 0 && animations[idx];
+  document.getElementById('animEditSection').style.display = hasAnim ? 'block' : 'none';
+  document.getElementById('hitboxSection').style.display = hasAnim ? 'block' : 'none';
+  document.getElementById('damageBoxSection').style.display = hasAnim ? 'block' : 'none';
+  document.getElementById('originSection').style.display = hasAnim ? 'block' : 'none';
+  document.getElementById('previewModeBar').style.display = hasAnim ? 'flex' : 'none';
+
+  if (hasAnim) {
+    const anim = animations[idx];
+    document.getElementById('editAnimName').textContent = anim.name;
+    document.getElementById('animFps').value = anim.fps;
+    document.getElementById('animLooped').checked = anim.looped;
+    document.getElementById('animPingPong').checked = anim.pingPong;
+
+    // Hitbox
+    const hb = anim.hitbox;
+    document.getElementById('hitboxEnabled').checked = !!hb;
+    document.getElementById('hitboxFields').style.display = hb ? 'block' : 'none';
+    if (hb) {
+      document.getElementById('hitboxX').value = hb.x;
+      document.getElementById('hitboxY').value = hb.y;
+      document.getElementById('hitboxW').value = hb.w;
+      document.getElementById('hitboxH').value = hb.h;
+    }
+
+    // DamageBox
+    const db = anim.damageBox;
+    document.getElementById('damageBoxEnabled').checked = !!db;
+    document.getElementById('damageBoxFields').style.display = db ? 'block' : 'none';
+    if (db) {
+      document.getElementById('damageBoxX').value = db.x;
+      document.getElementById('damageBoxY').value = db.y;
+      document.getElementById('damageBoxW').value = db.w;
+      document.getElementById('damageBoxH').value = db.h;
+    }
+
+    // Origin
+    const og = anim.origin;
+    document.getElementById('originX').value = og ? og.x : Math.floor(frameW / 2);
+    document.getElementById('originY').value = og ? og.y : frameH;
+
+    renderSelectedFrames();
+    restartPreview();
+  } else {
+    stopPreview();
+  }
+  drawMain();
+}
+
+function renderAnimList() {
+  const list = document.getElementById('animList');
+  list.innerHTML = '';
+  animations.forEach((a, i) => {
+    const div = document.createElement('div');
+    div.className = 'anim-item' + (i === activeAnimIdx ? ' active' : '');
+    const pp = a.pingPong ? ' pp' : '';
+    div.innerHTML = `
+      <span class="anim-name">${a.name}</span>
+      <span class="anim-info">${a.frames.length}f ${a.fps}fps${pp}</span>
+      <button class="delete-btn" title="Delete">&#x2715;</button>
+    `;
+    div.onclick = () => selectAnimation(i);
+    div.oncontextmenu = e => { e.preventDefault(); showContextMenu(e, i); };
+    div.ondblclick = () => renameAnimation(i);
+    div.querySelector('.delete-btn').onclick = e => { e.stopPropagation(); deleteAnimation(i); };
+    list.appendChild(div);
+  });
+}
+
+// ============================================================
+// FRAME MANAGEMENT
+// ============================================================
+function renderSelectedFrames() {
+  const container = document.getElementById('selectedFrames');
+  if (activeAnimIdx < 0) { container.innerHTML = ''; return; }
+  const anim = animations[activeAnimIdx];
+  container.innerHTML = '';
+  anim.frames.forEach((f, i) => {
+    const tag = document.createElement('span');
+    tag.className = 'frame-tag';
+    tag.draggable = true;
+    tag.dataset.idx = i;
+    tag.innerHTML = `${f}<span class="remove" data-remove="${i}">&times;</span>`;
+
+    // Drag reorder
+    tag.addEventListener('dragstart', e => {
+      dragFromIdx = i;
+      tag.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    tag.addEventListener('dragend', () => {
+      tag.classList.remove('dragging');
+      dragFromIdx = -1;
+      container.querySelectorAll('.frame-tag').forEach(t => t.classList.remove('drag-over'));
+    });
+    tag.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      tag.classList.add('drag-over');
+    });
+    tag.addEventListener('dragleave', () => tag.classList.remove('drag-over'));
+    tag.addEventListener('drop', e => {
+      e.preventDefault();
+      tag.classList.remove('drag-over');
+      if (dragFromIdx < 0 || dragFromIdx === i) return;
+      pushUndo();
+      const moved = anim.frames.splice(dragFromIdx, 1)[0];
+      anim.frames.splice(i, 0, moved);
+      renderSelectedFrames();
+      drawMain();
+      restartPreview();
+      autoSave();
+    });
+
+    // Remove button
+    tag.querySelector('.remove').addEventListener('click', e => {
+      e.stopPropagation();
+      pushUndo();
+      anim.frames.splice(i, 1);
+      renderSelectedFrames();
+      drawMain();
+      restartPreview();
+      autoSave();
+    });
+
+    container.appendChild(tag);
+  });
+}
+
+function selectAllFrames() {
+  if (activeAnimIdx < 0) return;
+  pushUndo();
+  animations[activeAnimIdx].frames = Array.from({ length: totalFrames }, (_, i) => i);
+  renderSelectedFrames();
+  drawMain();
+  restartPreview();
+  autoSave();
+}
+
+function reverseFrames() {
+  if (activeAnimIdx < 0) return;
+  pushUndo();
+  animations[activeAnimIdx].frames.reverse();
+  renderSelectedFrames();
+  drawMain();
+  restartPreview();
+  autoSave();
+}
+
+function clearFrames() {
+  if (activeAnimIdx < 0) return;
+  pushUndo();
+  animations[activeAnimIdx].frames = [];
+  renderSelectedFrames();
+  drawMain();
+  stopPreview();
+  autoSave();
+}
+
+function updateAnimProp(prop) {
+  if (activeAnimIdx < 0) return;
+  pushUndo();
+  const anim = animations[activeAnimIdx];
+  if (prop === 'fps') anim.fps = parseInt(document.getElementById('animFps').value) || 10;
+  else if (prop === 'looped') anim.looped = document.getElementById('animLooped').checked;
+  else if (prop === 'pingPong') anim.pingPong = document.getElementById('animPingPong').checked;
+  renderAnimList();
+  restartPreview();
+  autoSave();
+}
+
+// ============================================================
+// HITBOX & ORIGIN
+// ============================================================
+function updateHitbox() {
+  if (activeAnimIdx < 0) return;
+  const enabled = document.getElementById('hitboxEnabled').checked;
+  document.getElementById('hitboxFields').style.display = enabled ? 'block' : 'none';
+  pushUndo();
+  if (enabled) {
+    animations[activeAnimIdx].hitbox = {
+      x: parseInt(document.getElementById('hitboxX').value) || 0,
+      y: parseInt(document.getElementById('hitboxY').value) || 0,
+      w: parseInt(document.getElementById('hitboxW').value) || frameW,
+      h: parseInt(document.getElementById('hitboxH').value) || frameH
+    };
+  } else {
+    animations[activeAnimIdx].hitbox = null;
+  }
+  drawPreviewFrame();
+  autoSave();
+}
+
+function updateOrigin() {
+  if (activeAnimIdx < 0) return;
+  pushUndo();
+  animations[activeAnimIdx].origin = {
+    x: parseInt(document.getElementById('originX').value) || 0,
+    y: parseInt(document.getElementById('originY').value) || 0
+  };
+  drawPreviewFrame();
+  autoSave();
+}
+
+// ============================================================
+// PREVIEW MODE (View / Hitbox / Origin)
+// ============================================================
+function setPreviewMode(mode) {
+  previewMode = mode;
+  document.querySelectorAll('.preview-mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+  previewCanvas.style.cursor = mode === 'view' ? 'default' : 'crosshair';
+  drawPreviewFrame();
+}
+
+// ---- DamageBox handle detection (mirrors hitbox) ----
+function getDamageBoxHandle(px, py, db) {
+  if (!db) return null;
+  const t = Math.max(3, 6 / previewScale);
+  const l = db.x, r = db.x + db.w, top = db.y, bot = db.y + db.h;
+  const onL = Math.abs(px - l) <= t, onR = Math.abs(px - r) <= t;
+  const onT = Math.abs(py - top) <= t, onB = Math.abs(py - bot) <= t;
+  const inX = px >= l - t && px <= r + t;
+  const inY = py >= top - t && py <= bot + t;
+
+  if (onT && onL) return 'nw';
+  if (onT && onR) return 'ne';
+  if (onB && onL) return 'sw';
+  if (onB && onR) return 'se';
+  if (onT && inX) return 'n';
+  if (onB && inX) return 's';
+  if (onL && inY) return 'w';
+  if (onR && inY) return 'e';
+  if (px >= l && px <= r && py >= top && py <= bot) return 'move';
+  return null;
+}
+
+function applyDamageBoxAction(action, dx, dy, orig) {
+  let { x, y, w, h } = { ...orig };
+  switch (action) {
+    case 'move':  x += dx; y += dy; break;
+    case 'nw':    x += dx; y += dy; w -= dx; h -= dy; break;
+    case 'n':     y += dy; h -= dy; break;
+    case 'ne':    y += dy; w += dx; h -= dy; break;
+    case 'e':     w += dx; break;
+    case 'se':    w += dx; h += dy; break;
+    case 's':     h += dy; break;
+    case 'sw':    x += dx; w -= dx; h += dy; break;
+    case 'w':     x += dx; w -= dx; break;
+    case 'draw':
+      x = Math.min(orig.x, orig.x + dx);
+      y = Math.min(orig.y, orig.y + dy);
+      w = Math.abs(dx);
+      h = Math.abs(dy);
+      break;
+  }
+  if (w < 1) { if (action !== 'move') { x += w - 1; } w = 1; }
+  if (h < 1) { if (action !== 'move') { y += h - 1; } h = 1; }
+  x = Math.max(0, Math.min(frameW - 1, Math.round(x)));
+  y = Math.max(0, Math.min(frameH - 1, Math.round(y)));
+  w = Math.min(frameW - x, Math.max(1, Math.round(w)));
+  h = Math.min(frameH - y, Math.max(1, Math.round(h)));
+  return { x, y, w, h };
+}
+
+function syncDamageBoxUI(db) {
+  document.getElementById('damageBoxEnabled').checked = true;
+  document.getElementById('damageBoxFields').style.display = 'block';
+  document.getElementById('damageBoxX').value = db.x;
+  document.getElementById('damageBoxY').value = db.y;
+  document.getElementById('damageBoxW').value = db.w;
+  document.getElementById('damageBoxH').value = db.h;
+}
+
+// ---- Hitbox handle detection ----
+const HANDLE_CURSORS = {
+  'nw': 'nwse-resize', 'n': 'ns-resize', 'ne': 'nesw-resize',
+  'w': 'ew-resize', 'e': 'ew-resize',
+  'sw': 'nesw-resize', 's': 'ns-resize', 'se': 'nwse-resize',
+  'move': 'move'
+};
+
+function getHitboxHandle(px, py, hb) {
+  if (!hb) return null;
+  const t = Math.max(3, 6 / previewScale); // threshold in frame coords
+  const l = hb.x, r = hb.x + hb.w, top = hb.y, bot = hb.y + hb.h;
+  const onL = Math.abs(px - l) <= t, onR = Math.abs(px - r) <= t;
+  const onT = Math.abs(py - top) <= t, onB = Math.abs(py - bot) <= t;
+  const inX = px >= l - t && px <= r + t;
+  const inY = py >= top - t && py <= bot + t;
+
+  if (onT && onL) return 'nw';
+  if (onT && onR) return 'ne';
+  if (onB && onL) return 'sw';
+  if (onB && onR) return 'se';
+  if (onT && inX) return 'n';
+  if (onB && inX) return 's';
+  if (onL && inY) return 'w';
+  if (onR && inY) return 'e';
+  if (px >= l && px <= r && py >= top && py <= bot) return 'move';
+  return null;
+}
+
+function applyHitboxAction(action, dx, dy, orig) {
+  let { x, y, w, h } = { ...orig };
+  switch (action) {
+    case 'move':  x += dx; y += dy; break;
+    case 'nw':    x += dx; y += dy; w -= dx; h -= dy; break;
+    case 'n':     y += dy; h -= dy; break;
+    case 'ne':    y += dy; w += dx; h -= dy; break;
+    case 'e':     w += dx; break;
+    case 'se':    w += dx; h += dy; break;
+    case 's':     h += dy; break;
+    case 'sw':    x += dx; w -= dx; h += dy; break;
+    case 'w':     x += dx; w -= dx; break;
+    case 'draw':  // handled separately
+      x = Math.min(orig.x, orig.x + dx);
+      y = Math.min(orig.y, orig.y + dy);
+      w = Math.abs(dx);
+      h = Math.abs(dy);
+      break;
+  }
+  // Ensure minimum size of 1
+  if (w < 1) { if (action !== 'move') { x += w - 1; } w = 1; }
+  if (h < 1) { if (action !== 'move') { y += h - 1; } h = 1; }
+  // Clamp to frame bounds
+  x = Math.max(0, Math.min(frameW - 1, Math.round(x)));
+  y = Math.max(0, Math.min(frameH - 1, Math.round(y)));
+  w = Math.min(frameW - x, Math.max(1, Math.round(w)));
+  h = Math.min(frameH - y, Math.max(1, Math.round(h)));
+  return { x, y, w, h };
+}
+
+function syncHitboxUI(hb) {
+  document.getElementById('hitboxEnabled').checked = true;
+  document.getElementById('hitboxFields').style.display = 'block';
+  document.getElementById('hitboxX').value = hb.x;
+  document.getElementById('hitboxY').value = hb.y;
+  document.getElementById('hitboxW').value = hb.w;
+  document.getElementById('hitboxH').value = hb.h;
+}
+
+function previewCoords(e) {
+  const rect = previewCanvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) / previewScale,
+    y: (e.clientY - rect.top) / previewScale
+  };
+}
+
+// ---- Preview canvas interaction ----
+previewCanvas.addEventListener('mousedown', e => {
+  if (activeAnimIdx < 0 || !image) return;
+  const p = previewCoords(e);
+
+  if (previewMode === 'origin') {
+    const ox = Math.round(Math.max(0, Math.min(frameW, p.x)));
+    const oy = Math.round(Math.max(0, Math.min(frameH, p.y)));
+    pushUndo();
+    animations[activeAnimIdx].origin = { x: ox, y: oy };
+    document.getElementById('originX').value = ox;
+    document.getElementById('originY').value = oy;
+    drawPreviewFrame();
+    autoSave();
+    return;
+  }
+
+  if (previewMode === 'hitbox') {
+    const anim = animations[activeAnimIdx];
+    const handle = getHitboxHandle(p.x, p.y, anim.hitbox);
+
+    if (handle) {
+      // Move or resize existing hitbox
+      hitboxAction = handle;
+      hitboxDragStart = { x: p.x, y: p.y };
+      hitboxOriginal = { ...anim.hitbox };
+      pushUndo();
+    } else {
+      // Draw new hitbox from scratch
+      hitboxAction = 'draw';
+      hitboxDragStart = { x: p.x, y: p.y };
+      hitboxOriginal = { x: p.x, y: p.y, w: 0, h: 0 };
+      pushUndo();
+    }
+  }
+
+  if (previewMode === 'damage') {
+    const anim = animations[activeAnimIdx];
+    const handle = getDamageBoxHandle(p.x, p.y, anim.damageBox);
+
+    if (handle) {
+      damageBoxAction = handle;
+      damageBoxDragStart = { x: p.x, y: p.y };
+      damageBoxOriginal = { ...anim.damageBox };
+      pushUndo();
+    } else {
+      damageBoxAction = 'draw';
+      damageBoxDragStart = { x: p.x, y: p.y };
+      damageBoxOriginal = { x: p.x, y: p.y, w: 0, h: 0 };
+      pushUndo();
+    }
+  }
+});
+
+previewCanvas.addEventListener('mousemove', e => {
+  if (activeAnimIdx < 0 || !image) return;
+  const p = previewCoords(e);
+
+  if (hitboxAction && hitboxDragStart) {
+    // Active drag: update live preview
+    const dx = p.x - hitboxDragStart.x;
+    const dy = p.y - hitboxDragStart.y;
+    const liveHb = applyHitboxAction(hitboxAction, dx, dy, hitboxOriginal);
+    animations[activeAnimIdx].hitbox = liveHb;
+    syncHitboxUI(liveHb);
+    drawPreviewFrame();
+    return;
+  }
+
+  if (damageBoxAction && damageBoxDragStart) {
+    const dx = p.x - damageBoxDragStart.x;
+    const dy = p.y - damageBoxDragStart.y;
+    const liveDb = applyDamageBoxAction(damageBoxAction, dx, dy, damageBoxOriginal);
+    animations[activeAnimIdx].damageBox = liveDb;
+    syncDamageBoxUI(liveDb);
+    drawPreviewFrame();
+    return;
+  }
+
+  // Hover cursor feedback in hitbox mode
+  if (previewMode === 'hitbox') {
+    const anim = animations[activeAnimIdx];
+    const handle = getHitboxHandle(p.x, p.y, anim.hitbox);
+    previewCanvas.style.cursor = handle ? (HANDLE_CURSORS[handle] || 'crosshair') : 'crosshair';
+  }
+
+  // Hover cursor feedback in damage mode
+  if (previewMode === 'damage') {
+    const anim = animations[activeAnimIdx];
+    const handle = getDamageBoxHandle(p.x, p.y, anim.damageBox);
+    previewCanvas.style.cursor = handle ? (HANDLE_CURSORS[handle] || 'crosshair') : 'crosshair';
+  }
+});
+
+previewCanvas.addEventListener('mouseup', e => {
+  if (hitboxAction && hitboxDragStart) {
+    const p = previewCoords(e);
+    const dx = p.x - hitboxDragStart.x;
+    const dy = p.y - hitboxDragStart.y;
+    const finalHb = applyHitboxAction(hitboxAction, dx, dy, hitboxOriginal);
+
+    if (finalHb.w >= 1 && finalHb.h >= 1) {
+      animations[activeAnimIdx].hitbox = finalHb;
+      syncHitboxUI(finalHb);
+      autoSave();
+    } else {
+      animations[activeAnimIdx].hitbox = hitboxOriginal.w > 0 ? hitboxOriginal : null;
+      undo();
+    }
+
+    hitboxAction = null;
+    hitboxDragStart = null;
+    hitboxOriginal = null;
+    drawPreviewFrame();
+    return;
+  }
+
+  if (damageBoxAction && damageBoxDragStart) {
+    const p = previewCoords(e);
+    const dx = p.x - damageBoxDragStart.x;
+    const dy = p.y - damageBoxDragStart.y;
+    const finalDb = applyDamageBoxAction(damageBoxAction, dx, dy, damageBoxOriginal);
+
+    if (finalDb.w >= 1 && finalDb.h >= 1) {
+      animations[activeAnimIdx].damageBox = finalDb;
+      syncDamageBoxUI(finalDb);
+      autoSave();
+    } else {
+      animations[activeAnimIdx].damageBox = damageBoxOriginal.w > 0 ? damageBoxOriginal : null;
+      undo();
+    }
+
+    damageBoxAction = null;
+    damageBoxDragStart = null;
+    damageBoxOriginal = null;
+    drawPreviewFrame();
+    return;
+  }
+});
+
+// Cancel drag if mouse leaves window
+window.addEventListener('mouseup', () => {
+  if (hitboxAction) {
+    hitboxAction = null;
+    hitboxDragStart = null;
+    hitboxOriginal = null;
+    drawPreviewFrame();
+  }
+  if (damageBoxAction) {
+    damageBoxAction = null;
+    damageBoxDragStart = null;
+    damageBoxOriginal = null;
+    drawPreviewFrame();
+  }
+});
+
+// ============================================================
+// PREVIEW
+// ============================================================
+function drawPreviewFrame() {
+  if (activeAnimIdx < 0 || !image) return;
+  const anim = animations[activeAnimIdx];
+  if (anim.frames.length === 0) {
+    previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+    document.getElementById('previewInfo').textContent = 'No frames';
+    return;
+  }
+
+  // Build effective frame list (with ping-pong)
+  const effectiveFrames = getEffectiveFrames(anim);
+  const fi = previewFrame % effectiveFrames.length;
+  const f = effectiveFrames[fi];
+  const fc = f % cols;
+  const fr = Math.floor(f / cols);
+  const pw = frameW * previewScale;
+  const ph = frameH * previewScale;
+  previewCanvas.width = pw;
+  previewCanvas.height = ph;
+  previewCtx.imageSmoothingEnabled = false;
+  previewCtx.clearRect(0, 0, pw, ph);
+
+  // Onion skinning - previous frame
+  const onion = document.getElementById('onionSkin').checked;
+  if (onion && effectiveFrames.length > 1) {
+    const prevIdx = (fi - 1 + effectiveFrames.length) % effectiveFrames.length;
+    const pf = effectiveFrames[prevIdx];
+    const pfc = pf % cols, pfr = Math.floor(pf / cols);
+    previewCtx.globalAlpha = 0.2;
+    previewCtx.drawImage(image, pfc * frameW, pfr * frameH, frameW, frameH, 0, 0, pw, ph);
+
+    const nextIdx = (fi + 1) % effectiveFrames.length;
+    const nf = effectiveFrames[nextIdx];
+    const nfc = nf % cols, nfr = Math.floor(nf / cols);
+    previewCtx.globalAlpha = 0.1;
+    previewCtx.drawImage(image, nfc * frameW, nfr * frameH, frameW, frameH, 0, 0, pw, ph);
+    previewCtx.globalAlpha = 1;
+  }
+
+  // Current frame
+  previewCtx.drawImage(image, fc * frameW, fr * frameH, frameW, frameH, 0, 0, pw, ph);
+
+  // Draw hitbox overlay
+  const hb = anim.hitbox;
+  if (hb) {
+    const hx = hb.x * previewScale, hy = hb.y * previewScale;
+    const hw = hb.w * previewScale, hh = hb.h * previewScale;
+
+    // Fill
+    previewCtx.fillStyle = 'rgba(16, 185, 129, 0.15)';
+    previewCtx.fillRect(hx, hy, hw, hh);
+
+    // Border
+    previewCtx.strokeStyle = 'rgba(16, 185, 129, 0.9)';
+    previewCtx.lineWidth = 2;
+    previewCtx.setLineDash([4, 4]);
+    previewCtx.strokeRect(hx, hy, hw, hh);
+    previewCtx.setLineDash([]);
+
+    // Resize handles (only in hitbox mode)
+    if (previewMode === 'hitbox') {
+      const hs = 6; // handle size
+      previewCtx.fillStyle = '#10b981';
+      previewCtx.strokeStyle = '#fff';
+      previewCtx.lineWidth = 1;
+      const handles = [
+        [hx, hy],                           // nw
+        [hx + hw / 2, hy],                  // n
+        [hx + hw, hy],                      // ne
+        [hx + hw, hy + hh / 2],             // e
+        [hx + hw, hy + hh],                 // se
+        [hx + hw / 2, hy + hh],             // s
+        [hx, hy + hh],                      // sw
+        [hx, hy + hh / 2],                  // w
+      ];
+      for (const [cx, cy] of handles) {
+        previewCtx.fillRect(cx - hs / 2, cy - hs / 2, hs, hs);
+        previewCtx.strokeRect(cx - hs / 2, cy - hs / 2, hs, hs);
+      }
+    }
+  }
+
+  // Draw damageBox overlay
+  const db = anim.damageBox;
+  if (db) {
+    const dx2 = db.x * previewScale, dy2 = db.y * previewScale;
+    const dw = db.w * previewScale, dh = db.h * previewScale;
+
+    // Fill
+    previewCtx.fillStyle = 'rgba(239, 68, 68, 0.15)';
+    previewCtx.fillRect(dx2, dy2, dw, dh);
+
+    // Border
+    previewCtx.strokeStyle = 'rgba(239, 68, 68, 0.9)';
+    previewCtx.lineWidth = 2;
+    previewCtx.setLineDash([4, 4]);
+    previewCtx.strokeRect(dx2, dy2, dw, dh);
+    previewCtx.setLineDash([]);
+
+    // Resize handles (only in damage mode)
+    if (previewMode === 'damage') {
+      const hs = 6;
+      previewCtx.fillStyle = '#ef4444';
+      previewCtx.strokeStyle = '#fff';
+      previewCtx.lineWidth = 1;
+      const handles = [
+        [dx2, dy2],
+        [dx2 + dw / 2, dy2],
+        [dx2 + dw, dy2],
+        [dx2 + dw, dy2 + dh / 2],
+        [dx2 + dw, dy2 + dh],
+        [dx2 + dw / 2, dy2 + dh],
+        [dx2, dy2 + dh],
+        [dx2, dy2 + dh / 2],
+      ];
+      for (const [cx, cy] of handles) {
+        previewCtx.fillRect(cx - hs / 2, cy - hs / 2, hs, hs);
+        previewCtx.strokeRect(cx - hs / 2, cy - hs / 2, hs, hs);
+      }
+    }
+  }
+
+  // Draw origin point
+  const og = anim.origin;
+  if (og) {
+    const ox = og.x * previewScale, oy = og.y * previewScale;
+    const cs = 8;
+    previewCtx.strokeStyle = '#ef4444';
+    previewCtx.lineWidth = 2;
+    previewCtx.beginPath();
+    previewCtx.moveTo(ox - cs, oy); previewCtx.lineTo(ox + cs, oy);
+    previewCtx.moveTo(ox, oy - cs); previewCtx.lineTo(ox, oy + cs);
+    previewCtx.stroke();
+    previewCtx.fillStyle = '#ef4444';
+    previewCtx.beginPath();
+    previewCtx.arc(ox, oy, 3, 0, Math.PI * 2);
+    previewCtx.fill();
+  }
+
+  // Frame info text
+  const origFrameIdx = anim.frames.indexOf(f);
+  document.getElementById('previewInfo').textContent =
+    `Frame ${fi + 1}/${effectiveFrames.length} (idx: ${f}) | ${anim.fps} fps` +
+    (anim.pingPong ? ' | ping-pong' : '');
+}
+
+function getEffectiveFrames(anim) {
+  if (!anim.pingPong || anim.frames.length <= 2) return anim.frames;
+  // Forward + reverse (excluding first and last to avoid double)
+  const forward = anim.frames;
+  const reverse = anim.frames.slice(1, -1).reverse();
+  return [...forward, ...reverse];
+}
+
+function togglePreview() {
+  if (previewPlaying) stopPreview();
+  else startPreview();
+}
+
+function startPreview() {
+  if (activeAnimIdx < 0) return;
+  const anim = animations[activeAnimIdx];
+  if (anim.frames.length === 0) return;
+  previewPlaying = true;
+  previewFrame = 0;
+  document.getElementById('playBtn').textContent = 'Stop';
+  drawPreviewFrame();
+  previewTimer = setInterval(() => {
+    const effectiveFrames = getEffectiveFrames(anim);
+    previewFrame = (previewFrame + 1) % effectiveFrames.length;
+    drawPreviewFrame();
+  }, 1000 / anim.fps);
+}
+
+function stopPreview() {
+  previewPlaying = false;
+  document.getElementById('playBtn').textContent = 'Play';
+  if (previewTimer) { clearInterval(previewTimer); previewTimer = null; }
+}
+
+function restartPreview() {
+  stopPreview();
+  previewFrame = 0;
+  drawPreviewFrame();
+  startPreview();
+}
+
+function previewStep(dir) {
+  stopPreview();
+  if (activeAnimIdx < 0) return;
+  const anim = animations[activeAnimIdx];
+  const effectiveFrames = getEffectiveFrames(anim);
+  if (effectiveFrames.length === 0) return;
+  previewFrame = (previewFrame + dir + effectiveFrames.length) % effectiveFrames.length;
+  drawPreviewFrame();
+}
+
+function updatePreviewScale() {
+  previewScale = parseInt(document.getElementById('previewScale').value) || 2;
+  drawPreviewFrame();
+}
+
+function setPreviewBg(bg) {
+  const wrap = document.getElementById('previewWrap');
+  wrap.className = 'preview-canvas-wrap preview-bg-' + bg;
+  document.querySelectorAll('.bg-swatch').forEach(s => {
+    s.classList.toggle('active', s.dataset.bg === bg);
+  });
+}
+
+// ============================================================
+// CONTEXT MENU
+// ============================================================
+function showContextMenu(e, idx) {
+  contextAnimIdx = idx;
+  contextMenu.style.display = 'block';
+  contextMenu.style.left = e.clientX + 'px';
+  contextMenu.style.top = e.clientY + 'px';
+  // Keep in viewport
+  const rect = contextMenu.getBoundingClientRect();
+  if (rect.right > window.innerWidth) contextMenu.style.left = (e.clientX - rect.width) + 'px';
+  if (rect.bottom > window.innerHeight) contextMenu.style.top = (e.clientY - rect.height) + 'px';
+}
+
+document.addEventListener('click', () => { contextMenu.style.display = 'none'; });
+document.getElementById('ctxRename').onclick = () => renameAnimation(contextAnimIdx);
+document.getElementById('ctxDuplicate').onclick = () => duplicateAnimation(contextAnimIdx);
+document.getElementById('ctxDelete').onclick = () => deleteAnimation(contextAnimIdx);
+
+// ============================================================
+// EXPORT / IMPORT
+// ============================================================
+function exportJSON() {
+  if (!image) { toast('No image loaded'); return; }
+  const name = document.getElementById('spriteName').value.trim() || 'sprite';
+  const data = { image: imageFileName, frameWidth: frameW, frameHeight: frameH, animations: {} };
+
+  animations.forEach(a => {
+    const animData = { frames: a.frames, fps: a.fps, looped: a.looped };
+    if (a.pingPong) animData.pingPong = true;
+    if (a.hitbox) animData.hitbox = a.hitbox;
+    if (a.origin) animData.origin = a.origin;
+    if (a.damageBox) animData.damageBox = a.damageBox;
+    data.animations[a.name] = animData;
+  });
+
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Exported ' + name + '.json');
+}
+
+function importJSON() {
+  document.getElementById('importInput').click();
+}
+
+// Import listener moved to bottom (multi-sheet aware version)
+
+function newProject() {
+  if (animations.length > 0 && !confirm('Start a new project? Unsaved changes will be lost.')) return;
+  sheets = [];
+  activeSheetIdx = -1;
+  image = null;
+  imageFileName = '';
+  imageDataURL = '';
+  animations = [];
+  activeAnimIdx = -1;
+  undoStack.length = 0;
+  redoStack.length = 0;
+
+  mainCanvas.style.display = 'none';
+  dropZone.style.display = '';
+  document.getElementById('toolbar').style.display = 'none';
+  document.getElementById('gridSection').style.display = 'none';
+  document.getElementById('animSection').style.display = 'none';
+  document.getElementById('animEditSection').style.display = 'none';
+  document.getElementById('hitboxSection').style.display = 'none';
+  document.getElementById('damageBoxSection').style.display = 'none';
+  document.getElementById('originSection').style.display = 'none';
+  document.getElementById('exportSection').style.display = 'none';
+  document.getElementById('previewModeBar').style.display = 'none';
+  document.getElementById('imageInfo').textContent = '';
+  document.getElementById('spriteName').value = '';
+  document.getElementById('animList').innerHTML = '';
+  document.getElementById('previewInfo').textContent = 'No animation selected';
+  document.getElementById('sheetTabs').innerHTML = '';
+  document.getElementById('addSheetBtn').style.display = 'none';
+  previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+  stopPreview();
+
+  localStorage.removeItem('vengine-sprite-editor');
+  toast('New project');
+}
+
+// ============================================================
+// UNDO / REDO
+// ============================================================
+function pushUndo() {
+  undoStack.push(JSON.parse(JSON.stringify({ animations, activeAnimIdx, activeSheetIdx })));
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  redoStack.length = 0;
+}
+
+function undo() {
+  if (undoStack.length === 0) { toast('Nothing to undo'); return; }
+  redoStack.push(JSON.parse(JSON.stringify({ animations, activeAnimIdx, activeSheetIdx })));
+  const state = undoStack.pop();
+  animations = state.animations;
+  if (state.activeSheetIdx !== undefined && state.activeSheetIdx !== activeSheetIdx && state.activeSheetIdx < sheets.length) {
+    switchSheet(state.activeSheetIdx);
+  }
+  activeAnimIdx = state.activeAnimIdx;
+  renderAnimList();
+  selectAnimation(activeAnimIdx);
+  drawMain();
+  autoSave();
+}
+
+function redo() {
+  if (redoStack.length === 0) { toast('Nothing to redo'); return; }
+  undoStack.push(JSON.parse(JSON.stringify({ animations, activeAnimIdx, activeSheetIdx })));
+  const state = redoStack.pop();
+  animations = state.animations;
+  if (state.activeSheetIdx !== undefined && state.activeSheetIdx !== activeSheetIdx && state.activeSheetIdx < sheets.length) {
+    switchSheet(state.activeSheetIdx);
+  }
+  activeAnimIdx = state.activeAnimIdx;
+  renderAnimList();
+  selectAnimation(activeAnimIdx);
+  drawMain();
+  autoSave();
+}
+
+// ============================================================
+// AUTO-SAVE / AUTO-RESTORE
+// ============================================================
+let saveTimeout = null;
+function autoSave() {
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => {
+    try {
+      const state = {
+        imageFileName,
+        frameW, frameH,
+        animations,
+        activeAnimIdx,
+        spriteName: document.getElementById('spriteName').value,
+        zoom
+      };
+      // Try saving with image data
+      const imgSize = imageDataURL ? imageDataURL.length : 0;
+      if (imgSize > 0 && imgSize < 3 * 1024 * 1024) {
+        state.imageData = imageDataURL;
+      }
+      localStorage.setItem('vengine-sprite-editor', JSON.stringify(state));
+    } catch (e) {
+      // Retry without image data
+      try {
+        const state = {
+          imageFileName,
+          frameW, frameH,
+          animations,
+          activeAnimIdx,
+          spriteName: document.getElementById('spriteName').value,
+          zoom
+        };
+        localStorage.setItem('vengine-sprite-editor', JSON.stringify(state));
+      } catch (e2) {
+        console.warn('Auto-save failed:', e2);
+      }
+    }
+  }, 500);
+}
+
+function autoRestore() {
+  try {
+    const saved = localStorage.getItem('vengine-sprite-editor');
+    if (!saved) return;
+    const state = JSON.parse(saved);
+
+    frameW = state.frameW || 32;
+    frameH = state.frameH || 32;
+    document.getElementById('frameW').value = frameW;
+    document.getElementById('frameH').value = frameH;
+
+    animations = (state.animations || []).map(a => ({
+      name: a.name,
+      frames: a.frames || [],
+      fps: a.fps || 10,
+      looped: a.looped !== false,
+      pingPong: a.pingPong || false,
+      hitbox: a.hitbox || null,
+      origin: a.origin || null,
+      damageBox: a.damageBox || null
+    }));
+
+    activeAnimIdx = state.activeAnimIdx ?? -1;
+    imageFileName = state.imageFileName || '';
+    zoom = state.zoom || 2;
+    document.getElementById('zoomLevel').textContent = zoom + 'x';
+
+    if (state.spriteName) {
+      document.getElementById('spriteName').value = state.spriteName;
+    }
+
+    if (state.imageData) {
+      imageDataURL = state.imageData;
+      loadImageFromDataURL(imageDataURL);
+      // loadImageFromDataURL will call renderAnimList etc via updateGrid/drawMain
+      // We need to re-select the animation after image loads
+      const restoreIdx = activeAnimIdx;
+      const origOnload = image ? null : true;
+      const waitForImage = setInterval(() => {
+        if (image) {
+          clearInterval(waitForImage);
+          renderAnimList();
+          selectAnimation(restoreIdx);
+        }
+      }, 50);
+    } else if (animations.length > 0) {
+      // State restored but no image — show a hint
+      toast('Session restored. Load your spritesheet: ' + (imageFileName || 'image'));
+      renderAnimList();
+      document.getElementById('animSection').style.display = 'block';
+      document.getElementById('exportSection').style.display = 'block';
+    }
+  } catch (e) {
+    console.warn('Auto-restore failed:', e);
+  }
+}
+
+// ============================================================
+// SHORTCUTS MODAL
+// ============================================================
+function toggleShortcuts() {
+  const modal = document.getElementById('shortcutsModal');
+  modal.classList.toggle('show');
+}
+
+// ============================================================
+// KEYBOARD SHORTCUTS
+// ============================================================
+document.addEventListener('keydown', e => {
+  // Don't capture when typing in inputs
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  // Shortcuts modal
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleShortcuts(); return; }
+
+  // Close modal on Escape
+  if (e.key === 'Escape') {
+    document.getElementById('shortcutsModal').classList.remove('show');
+    contextMenu.style.display = 'none';
+    return;
+  }
+
+  // Undo/Redo
+  if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); return; }
+  if (e.ctrlKey && e.key === 'y') { e.preventDefault(); redo(); return; }
+
+  // Preview controls
+  if (e.key === ' ') { e.preventDefault(); togglePreview(); }
+  if (e.key === 'ArrowLeft') previewStep(-1);
+  if (e.key === 'ArrowRight') previewStep(1);
+
+  // Zoom
+  if (e.key === '+' || e.key === '=') setZoom(zoom + 1);
+  if (e.key === '-') setZoom(zoom - 1);
+});
+
+// ============================================================
+// TOAST
+// ============================================================
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ============================================================
+// MULTI-SHEET SUPPORT
+// ============================================================
+function addSheet(file, callback) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataURL = e.target.result;
+    const img = new Image();
+    img.onload = () => {
+      const sheet = {
+        image: img,
+        fileName: file.name,
+        dataURL: dataURL,
+        frameW: 32,
+        frameH: 32,
+        cols: 1,
+        rows: 1,
+        totalFrames: 1
+      };
+      sheets.push(sheet);
+      switchSheet(sheets.length - 1);
+      autoDetectGrid();
+      document.getElementById('addSheetBtn').style.display = '';
+      renderSheetTabs();
+      if (callback) callback();
+    };
+    img.src = dataURL;
+  };
+  reader.readAsDataURL(file);
+}
+
+function switchSheet(idx) {
+  if (idx < 0 || idx >= sheets.length) return;
+
+  // Save current sheet state
+  if (activeSheetIdx >= 0 && activeSheetIdx < sheets.length) {
+    sheets[activeSheetIdx].frameW = frameW;
+    sheets[activeSheetIdx].frameH = frameH;
+    sheets[activeSheetIdx].cols = cols;
+    sheets[activeSheetIdx].rows = rows;
+    sheets[activeSheetIdx].totalFrames = totalFrames;
+  }
+
+  activeSheetIdx = idx;
+  const s = sheets[idx];
+  image = s.image;
+  imageFileName = s.fileName;
+  imageDataURL = s.dataURL;
+  frameW = s.frameW;
+  frameH = s.frameH;
+  cols = s.cols;
+  rows = s.rows;
+  totalFrames = s.totalFrames;
+
+  // Update UI
+  document.getElementById('frameW').value = frameW;
+  document.getElementById('frameH').value = frameH;
+  document.getElementById('imageInfo').textContent = `${image.width}x${image.height} - ${imageFileName}`;
+  document.getElementById('gridInfo').textContent = `${cols} cols x ${rows} rows = ${totalFrames} frames`;
+
+  dropZone.style.display = 'none';
+  mainCanvas.style.display = 'block';
+  document.getElementById('toolbar').style.display = 'flex';
+  document.getElementById('gridSection').style.display = 'block';
+  document.getElementById('animSection').style.display = 'block';
+  document.getElementById('exportSection').style.display = 'block';
+
+  renderSheetTabs();
+  renderAnimList();
+  // Deselect animation if it belongs to a different sheet
+  if (activeAnimIdx >= 0 && animations[activeAnimIdx]?.sheetIdx !== idx) {
+    selectAnimation(-1);
+  }
+  drawMain();
+}
+
+function removeSheet(idx) {
+  if (sheets.length <= 1) { toast('Cannot remove last sheet'); return; }
+  if (!confirm(`Remove sheet "${sheets[idx].fileName}"? Animations on this sheet will be deleted.`)) return;
+  pushUndo();
+  // Remove animations belonging to this sheet
+  animations = animations.filter(a => a.sheetIdx !== idx);
+  // Adjust sheetIdx for animations on later sheets
+  animations.forEach(a => { if (a.sheetIdx > idx) a.sheetIdx--; });
+  sheets.splice(idx, 1);
+  if (activeSheetIdx >= sheets.length) activeSheetIdx = sheets.length - 1;
+  switchSheet(activeSheetIdx);
+  autoSave();
+}
+
+function renderSheetTabs() {
+  const container = document.getElementById('sheetTabs');
+  if (sheets.length <= 1) { container.innerHTML = ''; return; }
+  container.innerHTML = '';
+  sheets.forEach((s, i) => {
+    const tab = document.createElement('div');
+    tab.className = 'sheet-tab' + (i === activeSheetIdx ? ' active' : '');
+    const name = s.fileName.replace(/\.[^.]+$/, '');
+    tab.innerHTML = `${name}<span class="close-tab" title="Remove sheet">&times;</span>`;
+    tab.onclick = () => switchSheet(i);
+    tab.querySelector('.close-tab').onclick = e => { e.stopPropagation(); removeSheet(i); };
+    container.appendChild(tab);
+  });
+  // Show batch export only with multiple sheets
+  const batchBtn = document.getElementById('batchExportBtn');
+  if (batchBtn) batchBtn.style.display = sheets.length > 1 ? '' : 'none';
+}
+
+// Override file input to use addSheet
+document.getElementById('fileInput').addEventListener('change', e => {
+  if (e.target.files[0]) {
+    if (sheets.length === 0) {
+      addSheet(e.target.files[0]);
+    } else {
+      // Replace current sheet
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const img = new Image();
+        img.onload = () => {
+          sheets[activeSheetIdx].image = img;
+          sheets[activeSheetIdx].fileName = file.name;
+          sheets[activeSheetIdx].dataURL = ev.target.result;
+          switchSheet(activeSheetIdx);
+          autoDetectGrid();
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+  e.target.value = '';
+});
+
+// Add sheet button
+document.getElementById('addSheetInput').addEventListener('change', e => {
+  if (e.target.files[0]) addSheet(e.target.files[0]);
+  e.target.value = '';
+});
+
+// ============================================================
+// COPY / PASTE HITBOX & ORIGIN
+// ============================================================
+function copyHitbox() {
+  if (activeAnimIdx < 0) return;
+  const hb = animations[activeAnimIdx].hitbox;
+  if (!hb) { toast('No hitbox to copy'); return; }
+  clipboardHitbox = { ...hb };
+  toast('Hitbox copied');
+}
+
+function pasteHitbox() {
+  if (activeAnimIdx < 0 || !clipboardHitbox) { toast('Nothing to paste'); return; }
+  pushUndo();
+  animations[activeAnimIdx].hitbox = { ...clipboardHitbox };
+  document.getElementById('hitboxEnabled').checked = true;
+  document.getElementById('hitboxFields').style.display = 'block';
+  syncHitboxUI(animations[activeAnimIdx].hitbox);
+  drawPreviewFrame();
+  autoSave();
+  toast('Hitbox pasted');
+}
+
+function applyHitboxToAll() {
+  if (activeAnimIdx < 0) return;
+  const hb = animations[activeAnimIdx].hitbox;
+  if (!hb) { toast('No hitbox to apply'); return; }
+  pushUndo();
+  animations.forEach(a => { a.hitbox = { ...hb }; });
+  autoSave();
+  toast(`Hitbox applied to all ${animations.length} animations`);
+}
+
+function copyOrigin() {
+  if (activeAnimIdx < 0) return;
+  const og = animations[activeAnimIdx].origin;
+  if (!og) { toast('No origin to copy'); return; }
+  clipboardOrigin = { ...og };
+  toast('Origin copied');
+}
+
+function pasteOrigin() {
+  if (activeAnimIdx < 0 || !clipboardOrigin) { toast('Nothing to paste'); return; }
+  pushUndo();
+  animations[activeAnimIdx].origin = { ...clipboardOrigin };
+  document.getElementById('originX').value = clipboardOrigin.x;
+  document.getElementById('originY').value = clipboardOrigin.y;
+  drawPreviewFrame();
+  autoSave();
+  toast('Origin pasted');
+}
+
+function applyOriginToAll() {
+  if (activeAnimIdx < 0) return;
+  const og = animations[activeAnimIdx].origin;
+  if (!og) { toast('No origin to apply'); return; }
+  pushUndo();
+  animations.forEach(a => { a.origin = { ...og }; });
+  autoSave();
+  toast(`Origin applied to all ${animations.length} animations`);
+}
+
+// ============================================================
+// DAMAGE BOX
+// ============================================================
+function updateDamageBox() {
+  if (activeAnimIdx < 0) return;
+  const enabled = document.getElementById('damageBoxEnabled').checked;
+  document.getElementById('damageBoxFields').style.display = enabled ? 'block' : 'none';
+  pushUndo();
+  if (enabled) {
+    animations[activeAnimIdx].damageBox = {
+      x: parseInt(document.getElementById('damageBoxX').value) || 0,
+      y: parseInt(document.getElementById('damageBoxY').value) || 0,
+      w: parseInt(document.getElementById('damageBoxW').value) || frameW,
+      h: parseInt(document.getElementById('damageBoxH').value) || frameH
+    };
+  } else {
+    animations[activeAnimIdx].damageBox = null;
+  }
+  drawPreviewFrame();
+  autoSave();
+}
+
+function copyDamageBox() {
+  if (activeAnimIdx < 0) return;
+  const db = animations[activeAnimIdx].damageBox;
+  if (!db) { toast('No damage box to copy'); return; }
+  clipboardDamageBox = { ...db };
+  toast('Damage box copied');
+}
+
+function pasteDamageBox() {
+  if (activeAnimIdx < 0 || !clipboardDamageBox) { toast('Nothing to paste'); return; }
+  pushUndo();
+  animations[activeAnimIdx].damageBox = { ...clipboardDamageBox };
+  document.getElementById('damageBoxEnabled').checked = true;
+  document.getElementById('damageBoxFields').style.display = 'block';
+  syncDamageBoxUI(animations[activeAnimIdx].damageBox);
+  drawPreviewFrame();
+  autoSave();
+  toast('Damage box pasted');
+}
+
+function applyDamageBoxToAll() {
+  if (activeAnimIdx < 0) return;
+  const db = animations[activeAnimIdx].damageBox;
+  if (!db) { toast('No damage box to apply'); return; }
+  pushUndo();
+  animations.forEach(a => { a.damageBox = { ...db }; });
+  autoSave();
+  toast(`Damage box applied to all ${animations.length} animations`);
+}
+
+// ============================================================
+// BATCH EXPORT
+// ============================================================
+function batchExportAll() {
+  if (sheets.length === 0) { toast('No sheets loaded'); return; }
+  const baseName = document.getElementById('spriteName').value.trim() || 'sprite';
+
+  // Save current sheet state
+  if (activeSheetIdx >= 0) {
+    sheets[activeSheetIdx].frameW = frameW;
+    sheets[activeSheetIdx].frameH = frameH;
+  }
+
+  let exported = 0;
+  sheets.forEach((sheet, si) => {
+    const sheetAnims = animations.filter(a => a.sheetIdx === si);
+    if (sheetAnims.length === 0) return;
+
+    const data = {
+      image: sheet.fileName,
+      frameWidth: sheet.frameW,
+      frameHeight: sheet.frameH,
+      animations: {}
+    };
+
+    sheetAnims.forEach(a => {
+      const animData = { frames: a.frames, fps: a.fps, looped: a.looped };
+      if (a.pingPong) animData.pingPong = true;
+      if (a.hitbox) animData.hitbox = a.hitbox;
+      if (a.origin) animData.origin = a.origin;
+      if (a.damageBox) animData.damageBox = a.damageBox;
+      data.animations[a.name] = animData;
+    });
+
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const sheetName = sheet.fileName.replace(/\.[^.]+$/, '').replace(/^_/, '').toLowerCase();
+    a.download = (sheets.length > 1 ? sheetName : baseName) + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    exported++;
+  });
+
+  toast(`Exported ${exported} JSON file${exported > 1 ? 's' : ''}`);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+// Override addAnimation to include sheetIdx
+function addAnimation() {
+  const input = document.getElementById('newAnimName');
+  const name = input.value.trim();
+  if (!name) return;
+  if (animations.find(a => a.name === name)) { toast('Name already exists'); return; }
+  pushUndo();
+  animations.push({ name, sheetIdx: activeSheetIdx, frames: [], fps: 10, looped: true, pingPong: false, hitbox: null, origin: null, damageBox: null });
+  input.value = '';
+  renderAnimList();
+  selectAnimation(animations.length - 1);
+  autoSave();
+}
+
+// Override duplicateAnimation to include sheetIdx
+function duplicateAnimation(idx) {
+  if (idx < 0 || idx >= animations.length) return;
+  pushUndo();
+  const src = animations[idx];
+  let newName = src.name + ' copy';
+  let counter = 2;
+  while (animations.find(a => a.name === newName)) {
+    newName = src.name + ' copy ' + counter++;
+  }
+  animations.push({
+    name: newName,
+    sheetIdx: src.sheetIdx,
+    frames: [...src.frames],
+    fps: src.fps,
+    looped: src.looped,
+    pingPong: src.pingPong,
+    hitbox: src.hitbox ? { ...src.hitbox } : null,
+    origin: src.origin ? { ...src.origin } : null,
+    damageBox: src.damageBox ? { ...src.damageBox } : null
+  });
+  renderAnimList();
+  selectAnimation(animations.length - 1);
+  autoSave();
+}
+
+// Override renderAnimList to show sheet badge and filter by active sheet
+function renderAnimList() {
+  const list = document.getElementById('animList');
+  list.innerHTML = '';
+  animations.forEach((a, i) => {
+    // Show all animations, but dim ones from other sheets
+    const isOtherSheet = sheets.length > 1 && a.sheetIdx !== activeSheetIdx;
+    const div = document.createElement('div');
+    div.className = 'anim-item' + (i === activeAnimIdx ? ' active' : '');
+    if (isOtherSheet) div.style.opacity = '0.4';
+    const pp = a.pingPong ? ' pp' : '';
+    const sheetBadge = sheets.length > 1
+      ? `<span style="font-size:0.65rem; color:#555; margin-right:4px;">[${(a.sheetIdx + 1)}]</span>`
+      : '';
+    div.innerHTML = `
+      ${sheetBadge}<span class="anim-name">${a.name}</span>
+      <span class="anim-info">${a.frames.length}f ${a.fps}fps${pp}</span>
+      <button class="delete-btn" title="Delete">&#x2715;</button>
+    `;
+    div.onclick = () => {
+      // Switch to the animation's sheet if needed
+      if (a.sheetIdx !== activeSheetIdx) switchSheet(a.sheetIdx);
+      selectAnimation(i);
+    };
+    div.oncontextmenu = e => { e.preventDefault(); showContextMenu(e, i); };
+    div.ondblclick = () => renameAnimation(i);
+    div.querySelector('.delete-btn').onclick = e => { e.stopPropagation(); deleteAnimation(i); };
+    list.appendChild(div);
+  });
+}
+
+// Override exportJSON to include sheetIdx filtering
+function exportJSON() {
+  if (!image) { toast('No image loaded'); return; }
+  const name = document.getElementById('spriteName').value.trim() || 'sprite';
+  const sheetAnims = animations.filter(a => a.sheetIdx === activeSheetIdx);
+
+  const data = {
+    image: imageFileName,
+    frameWidth: frameW,
+    frameHeight: frameH,
+    animations: {}
+  };
+
+  sheetAnims.forEach(a => {
+    const animData = { frames: a.frames, fps: a.fps, looped: a.looped };
+    if (a.pingPong) animData.pingPong = true;
+    if (a.hitbox) animData.hitbox = a.hitbox;
+    if (a.origin) animData.origin = a.origin;
+    if (a.damageBox) animData.damageBox = a.damageBox;
+    data.animations[a.name] = animData;
+  });
+
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Exported ' + name + '.json (' + sheetAnims.length + ' animations)');
+}
+
+// loadImageFile is defined above with full sheet support
+
+// Patch importJSON to add sheetIdx
+document.getElementById('importInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      pushUndo();
+      frameW = data.frameWidth || 32;
+      frameH = data.frameHeight || 32;
+      document.getElementById('frameW').value = frameW;
+      document.getElementById('frameH').value = frameH;
+      if (activeSheetIdx >= 0 && activeSheetIdx < sheets.length) {
+        sheets[activeSheetIdx].frameW = frameW;
+        sheets[activeSheetIdx].frameH = frameH;
+      }
+      updateGrid();
+
+      // Remove animations for current sheet, add imported ones
+      animations = animations.filter(a => a.sheetIdx !== activeSheetIdx);
+      for (const [name, anim] of Object.entries(data.animations || {})) {
+        animations.push({
+          name,
+          sheetIdx: activeSheetIdx,
+          frames: anim.frames || [],
+          fps: anim.fps || 10,
+          looped: anim.looped !== false,
+          pingPong: anim.pingPong || false,
+          hitbox: anim.hitbox || null,
+          origin: anim.origin || null,
+          damageBox: anim.damageBox || null
+        });
+      }
+      renderAnimList();
+      selectAnimation(animations.length > 0 ? animations.findIndex(a => a.sheetIdx === activeSheetIdx) : -1);
+
+      const baseName = file.name.replace('.json', '');
+      document.getElementById('spriteName').value = baseName;
+      toast('Imported ' + file.name);
+      autoSave();
+    } catch (err) {
+      toast('Invalid JSON file');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// Patch autoSave/autoRestore for multi-sheet
+function autoSave() {
+  if (saveTimeout) clearTimeout(saveTimeout);
+  // Sync current sheet state
+  if (activeSheetIdx >= 0 && activeSheetIdx < sheets.length) {
+    sheets[activeSheetIdx].frameW = frameW;
+    sheets[activeSheetIdx].frameH = frameH;
+    sheets[activeSheetIdx].cols = cols;
+    sheets[activeSheetIdx].rows = rows;
+    sheets[activeSheetIdx].totalFrames = totalFrames;
+  }
+  saveTimeout = setTimeout(() => {
+    try {
+      const sheetsData = sheets.map(s => ({
+        fileName: s.fileName,
+        dataURL: s.dataURL.length < 3 * 1024 * 1024 ? s.dataURL : null,
+        frameW: s.frameW, frameH: s.frameH
+      }));
+      const state = {
+        sheets: sheetsData,
+        activeSheetIdx,
+        animations,
+        spriteName: document.getElementById('spriteName').value,
+        zoom
+      };
+      localStorage.setItem('vengine-sprite-editor', JSON.stringify(state));
+    } catch (e) {
+      console.warn('Auto-save failed:', e);
+    }
+  }, 500);
+}
+
+function autoRestore() {
+  try {
+    const saved = localStorage.getItem('vengine-sprite-editor');
+    if (!saved) return;
+    const state = JSON.parse(saved);
+
+    // New multi-sheet format
+    if (state.sheets) {
+      animations = (state.animations || []).map(a => ({
+        name: a.name,
+        sheetIdx: a.sheetIdx || 0,
+        frames: a.frames || [],
+        fps: a.fps || 10,
+        looped: a.looped !== false,
+        pingPong: a.pingPong || false,
+        hitbox: a.hitbox || null,
+        origin: a.origin || null,
+        damageBox: a.damageBox || null
+      }));
+      zoom = state.zoom || 2;
+      document.getElementById('zoomLevel').textContent = zoom + 'x';
+      if (state.spriteName) document.getElementById('spriteName').value = state.spriteName;
+
+      let loadedCount = 0;
+      const totalSheets = state.sheets.filter(s => s.dataURL).length;
+      if (totalSheets === 0) {
+        if (animations.length > 0) toast('Session restored. Load your spritesheets.');
+        return;
+      }
+      state.sheets.forEach((sd, i) => {
+        if (!sd.dataURL) return;
+        const img = new Image();
+        img.onload = () => {
+          sheets[i] = { image: img, fileName: sd.fileName, dataURL: sd.dataURL,
+            frameW: sd.frameW || 32, frameH: sd.frameH || 32,
+            cols: 0, rows: 0, totalFrames: 0 };
+          // Compute grid
+          sheets[i].cols = Math.floor(img.width / sheets[i].frameW);
+          sheets[i].rows = Math.floor(img.height / sheets[i].frameH);
+          sheets[i].totalFrames = sheets[i].cols * sheets[i].rows;
+          loadedCount++;
+          if (loadedCount === totalSheets) {
+            const targetSheet = state.activeSheetIdx ?? 0;
+            switchSheet(Math.min(targetSheet, sheets.length - 1));
+            renderAnimList();
+            document.getElementById('addSheetBtn').style.display = '';
+          }
+        };
+        img.src = sd.dataURL;
+      });
+    }
+    // Legacy single-sheet format
+    else if (state.imageData || state.imageFileName) {
+      frameW = state.frameW || 32;
+      frameH = state.frameH || 32;
+      animations = (state.animations || []).map(a => ({
+        name: a.name, sheetIdx: 0, frames: a.frames || [], fps: a.fps || 10,
+        looped: a.looped !== false, pingPong: a.pingPong || false,
+        hitbox: a.hitbox || null, origin: a.origin || null,
+        damageBox: a.damageBox || null
+      }));
+      zoom = state.zoom || 2;
+      if (state.spriteName) document.getElementById('spriteName').value = state.spriteName;
+      if (state.imageData) {
+        const img = new Image();
+        img.onload = () => {
+          sheets.push({ image: img, fileName: state.imageFileName || '', dataURL: state.imageData,
+            frameW, frameH, cols: 0, rows: 0, totalFrames: 0 });
+          sheets[0].cols = Math.floor(img.width / frameW);
+          sheets[0].rows = Math.floor(img.height / frameH);
+          sheets[0].totalFrames = sheets[0].cols * sheets[0].rows;
+          switchSheet(0);
+          renderAnimList();
+          document.getElementById('addSheetBtn').style.display = '';
+        };
+        img.src = state.imageData;
+      }
+    }
+  } catch (e) {
+    console.warn('Auto-restore failed:', e);
+  }
+}
+
+autoRestore();
+
+// Touch support — map touch events to mouse events for mobile/tablet
+(function() {
+  function touchToMouse(e, type) {
+    if (e.touches.length > 1) return; // ignore multi-touch
+    const t = e.changedTouches[0];
+    const evt = new MouseEvent(type, {
+      clientX: t.clientX, clientY: t.clientY,
+      button: 0, buttons: 1,
+      bubbles: true, cancelable: true
+    });
+    t.target.dispatchEvent(evt);
+    e.preventDefault();
+  }
+  document.addEventListener('touchstart', e => touchToMouse(e, 'mousedown'), {passive: false});
+  document.addEventListener('touchmove', e => touchToMouse(e, 'mousemove'), {passive: false});
+  document.addEventListener('touchend', e => touchToMouse(e, 'mouseup'), {passive: false});
+})();
+</script>
+</body>
+</html>
