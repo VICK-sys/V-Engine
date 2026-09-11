@@ -372,10 +372,10 @@ public class SceneGroupTests
         var group = new Group();
         var e = new Entity();
         group.Add(e);
-        Assert.Equal(1, group.Members.Count);
+        Assert.Single(group.Members);
         bool removed = group.Remove(e);
         Assert.True(removed);
-        Assert.Equal(0, group.Members.Count);
+        Assert.Empty(group.Members);
     }
 
     [Fact]

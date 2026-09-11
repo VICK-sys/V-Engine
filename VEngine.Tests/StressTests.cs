@@ -34,7 +34,7 @@ public class StressTests
         }
         // Every entity removes itself during Update — should not crash
         group.Update(0.016f);
-        Assert.Equal(0, group.Members.Count);
+        Assert.Empty(group.Members);
     }
 
     [Fact]

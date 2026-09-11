@@ -57,7 +57,7 @@ public class SceneLifecycleTests
         scene.Add(remover);
         scene.Add(toRemove);
         scene.Update(0.016f); // should not crash
-        Assert.Equal(1, scene.Entities.Count); // toRemove was removed
+        Assert.Single(scene.Entities);
     }
 
     private class TrackingScene : Scene

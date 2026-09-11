@@ -2054,10 +2054,10 @@ public class PhysicsTests
 
         var joint = DistanceJoint.Create(a, b, a.Position, b.Position);
         world.AddJoint(joint);
-        Assert.Equal(1, world.Joints.Count);
+        Assert.Single(world.Joints);
 
         world.DestroyJoint(joint);
-        Assert.Equal(0, world.Joints.Count);
+        Assert.Empty(world.Joints);
     }
 
     [Fact]
@@ -2074,7 +2074,7 @@ public class PhysicsTests
         world.AddJoint(new RevoluteJoint(a, b, Vec2.Zero));
 
         world.Clear();
-        Assert.Equal(0, world.Joints.Count);
+        Assert.Empty(world.Joints);
     }
 
     // ════════════════════════════════════════
