@@ -7,6 +7,20 @@ namespace VEngine.Engine.Audio;
 
 public class AudioManager
 {
+    private PcmMixer? _pcmMixer;
+    private SDL_mixer.MixFuncDelegate? _postMix;
+    public bool HasNativeMixer => _pcmMixer != null;
+
+    public int PlayPcm(ReadOnlySpan<short> samples, int channels = 2, float volume = 1, float pan = 0, bool loop = false) =>
+        RequirePcmMixer().Play(samples, channels, volume, pan, loop);
+
+    public void SetPcmSpatial(int voice, float volume, float pan, float lowpass = 0) =>
+        RequirePcmMixer().SetSpatial(voice, volume, pan, lowpass);
+
+    public void StopPcm(int voice) => RequirePcmMixer().Stop(voice);
+    public bool IsPcmPlaying(int voice) => RequirePcmMixer().IsPlaying(voice);
+
+    private PcmMixer RequirePcmMixer() => _pcmMixer ?? throw new InvalidOperationException("The native PCM mixer is unavailable.");
     private readonly Dictionary<string, IntPtr> _sounds = new();
     private readonly Dictionary<int, float> _channelVolumes = new();
     // Pre-allocated lists to avoid enumerator/list allocations during volume updates
@@ -46,6 +60,12 @@ public class AudioManager
         // Group channels so SFX (-1 auto-pick) never steals music channels
         SDL_mixer.Mix_GroupChannels(0, SfxChannelCount - 1, SfxGroup);
         SDL_mixer.Mix_GroupChannels(MusicChannelA, MusicChannelB, MusicGroup);
+        if (Core.NativeRuntime.IsAvailable("audio_mixer"))
+        {
+            _pcmMixer = new PcmMixer(44100);
+            _postMix = (_, stream, length) => _pcmMixer.AddTo(stream, length, _soundVolume * _masterVolume);
+            SDL_mixer.Mix_SetPostMix(_postMix, IntPtr.Zero);
+        }
     }
 
     // ---- Sound Effects ----
@@ -92,6 +112,7 @@ public class AudioManager
     /// </summary>
     public void StopAllSounds()
     {
+        _pcmMixer?.StopAll();
         SDL_mixer.Mix_HaltChannel(-1);
         _channelVolumes.Clear();
     }
@@ -469,6 +490,10 @@ public class AudioManager
 
     internal void Shutdown()
     {
+        SDL_mixer.Mix_SetPostMix(null!, IntPtr.Zero);
+        _pcmMixer?.Dispose();
+        _pcmMixer = null;
+        _postMix = null;
         SDL_mixer.Mix_HaltChannel(-1);
         FreeMusic();
 

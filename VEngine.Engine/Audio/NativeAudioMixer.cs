@@ -1,3 +1,4 @@
+using VEngine.Engine.Core;
 using System;
 using System.Runtime.InteropServices;
 
@@ -19,31 +20,31 @@ internal static class NativeAudioMixer
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
     public static extern int mixer_play(
-        IntPtr mixer,
+        NativeResource mixer,
         IntPtr pcmData, int sampleCount, int dataChannels,
         float volume, float pan, int loop
     );
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void mixer_stop(IntPtr mixer, int voiceId);
+    public static extern void mixer_stop(NativeResource mixer, int voiceId);
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void mixer_stop_all(IntPtr mixer);
+    public static extern void mixer_stop_all(NativeResource mixer);
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
     public static extern void mixer_set_spatial(
-        IntPtr mixer, int voiceId,
+        NativeResource mixer, int voiceId,
         float volume, float pan, float lowpass
     );
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int mixer_mix(IntPtr mixer, IntPtr output, int maxSamples);
+    public static extern int mixer_mix(NativeResource mixer, IntPtr output, int maxSamples);
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int mixer_active_voices(IntPtr mixer);
+    public static extern int mixer_active_voices(NativeResource mixer);
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int mixer_voice_finished(IntPtr mixer, int voiceId);
+    public static extern int mixer_voice_finished(NativeResource mixer, int voiceId);
 
     public static bool IsAvailable()
     {

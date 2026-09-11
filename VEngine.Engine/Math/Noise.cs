@@ -85,7 +85,8 @@ public static class Noise
     /// <summary>3D Perlin noise. Returns value in approximately [-1, 1].</summary>
     public static float Perlin3D(float x, float y, float z)
     {
-        return IsAvailable ? noise_perlin_3d(x, y, z) : ManagedPerlin2D(x + z, y + z);
+        Core.NativeRuntime.Require("noise");
+        return noise_perlin_3d(x, y, z);
     }
 
     /// <summary>Fractal Brownian motion (multi-octave Perlin sum). Returns value in approximately [-1, 1].</summary>
@@ -106,25 +107,28 @@ public static class Noise
     /// <summary>2D Simplex noise (faster than Perlin for higher dimensions, fewer artifacts).</summary>
     public static float Simplex2D(float x, float y)
     {
-        return IsAvailable ? noise_simplex_2d(x, y) : ManagedPerlin2D(x, y);
+        Core.NativeRuntime.Require("noise");
+        return noise_simplex_2d(x, y);
     }
 
     /// <summary>3D Simplex noise.</summary>
     public static float Simplex3D(float x, float y, float z)
     {
-        return IsAvailable ? noise_simplex_3d(x, y, z) : ManagedPerlin2D(x + z, y + z);
+        Core.NativeRuntime.Require("noise");
+        return noise_simplex_3d(x, y, z);
     }
 
     /// <summary>2D Worley (cellular) noise. Returns distance to nearest feature point.</summary>
     public static float Worley2D(float x, float y, float jitter = 1f)
     {
-        if (IsAvailable) return noise_worley_2d(x, y, jitter);
-        return 0.5f; // managed fallback not implemented
+        Core.NativeRuntime.Require("noise");
+        return noise_worley_2d(x, y, jitter);
     }
 
     /// <summary>Fill an array with 2D Perlin values. Faster than per-pixel calls.</summary>
     public static void PerlinFill(float[] output, int width, int height, float offsetX, float offsetY, float scale)
     {
+        ValidateFill(output, width, height, offsetX, offsetY, scale);
         if (IsAvailable) { noise_perlin_fill_2d(output, width, height, offsetX, offsetY, scale); return; }
         float invScale = scale != 0 ? 1f / scale : 1f;
         for (int y = 0; y < height; y++)
@@ -135,22 +139,29 @@ public static class Noise
     /// <summary>Fill an array with 2D Simplex values.</summary>
     public static void SimplexFill(float[] output, int width, int height, float offsetX, float offsetY, float scale)
     {
-        if (IsAvailable) { noise_simplex_fill_2d(output, width, height, offsetX, offsetY, scale); return; }
-        PerlinFill(output, width, height, offsetX, offsetY, scale);
+        ValidateFill(output, width, height, offsetX, offsetY, scale);
+        Core.NativeRuntime.Require("noise");
+        noise_simplex_fill_2d(output, width, height, offsetX, offsetY, scale);
     }
 
     /// <summary>Fill an array with 2D Worley values.</summary>
     public static void WorleyFill(float[] output, int width, int height, float offsetX, float offsetY, float scale, float jitter = 1f)
     {
-        if (IsAvailable) { noise_worley_fill_2d(output, width, height, offsetX, offsetY, scale, jitter); return; }
-        // Managed fallback
-        float invScale = scale != 0 ? 1f / scale : 1f;
-        for (int y = 0; y < height; y++)
-            for (int x = 0; x < width; x++)
-                output[y * width + x] = 0.5f;
+        ValidateFill(output, width, height, offsetX, offsetY, scale);
+        Core.NativeRuntime.Require("noise");
+        noise_worley_fill_2d(output, width, height, offsetX, offsetY, scale, jitter);
     }
 
     // ── Managed fallback (simple Perlin) ───────────────────
+
+    private static void ValidateFill(float[] output, int width, int height, float x, float y, float scale)
+    {
+        ArgumentNullException.ThrowIfNull(output);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
+        if (output.Length < checked(width * height)) throw new ArgumentException("Output is smaller than the grid.", nameof(output));
+        if (!float.IsFinite(x) || !float.IsFinite(y) || !float.IsFinite(scale)) throw new ArgumentOutOfRangeException(nameof(scale));
+    }
 
     private static readonly byte[] _perm = new byte[512];
     private static bool _managedInit;

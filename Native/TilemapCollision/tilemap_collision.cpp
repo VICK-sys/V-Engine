@@ -44,8 +44,8 @@ TILECOL_API void tilecol_set(TileColHandle tc, int tx, int ty, int solid) {
 TILECOL_API int tilecol_aabb_test(TileColHandle tc, float x, float y, float w, float h) {
     int minTX = (int)floorf(x * tc->invTileSize);
     int minTY = (int)floorf(y * tc->invTileSize);
-    int maxTX = (int)floorf((x + w - 0.001f) * tc->invTileSize);
-    int maxTY = (int)floorf((y + h - 0.001f) * tc->invTileSize);
+    int maxTX = (int)ceilf((x + w) * tc->invTileSize) - 1;
+    int maxTY = (int)ceilf((y + h) * tc->invTileSize) - 1;
 
     minTX = std::max(0, minTX);
     minTY = std::max(0, minTY);
@@ -65,8 +65,8 @@ TILECOL_API int tilecol_aabb_query(
 ) {
     int minTX = std::max(0, (int)floorf(x * tc->invTileSize));
     int minTY = std::max(0, (int)floorf(y * tc->invTileSize));
-    int maxTX = std::min(tc->width - 1, (int)floorf((x + w - 0.001f) * tc->invTileSize));
-    int maxTY = std::min(tc->height - 1, (int)floorf((y + h - 0.001f) * tc->invTileSize));
+    int maxTX = std::min(tc->width - 1, (int)ceilf((x + w) * tc->invTileSize) - 1);
+    int maxTY = std::min(tc->height - 1, (int)ceilf((y + h) * tc->invTileSize) - 1);
 
     int count = 0;
     for (int ty = minTY; ty <= maxTY && count < maxResults; ty++)
@@ -86,12 +86,34 @@ TILECOL_API float tilecol_raycast(
     int* hitTX, int* hitTY
 ) {
     float len = sqrtf(dx * dx + dy * dy);
-    if (len < 1e-8f) return -1;
+    if (hitTX) *hitTX = -1;
+    if (hitTY) *hitTY = -1;
+    if (len < 1e-8f || maxDist < 0) return -1;
     dx /= len; dy /= len;
+
+    float entry = 0, exit = maxDist;
+    auto clip = [&](float origin, float direction, float size) {
+        if (origin >= size && direction >= 0) return false;
+        if (origin < 0 && direction <= 0) return false;
+        if (direction == 0) return origin >= 0 && origin < size;
+        float a = -origin / direction, b = (size - origin) / direction;
+        if (a > b) std::swap(a, b);
+        entry = std::max(entry, a);
+        exit = std::min(exit, b);
+        return entry <= exit;
+    };
+    if (!clip(ox, dx, (float)tc->width * tc->tileSize) ||
+        !clip(oy, dy, (float)tc->height * tc->tileSize)) return -1;
+    float originalEntry = entry;
+    ox += dx * entry;
+    oy += dy * entry;
+    maxDist = exit - entry;
 
     float inv = tc->invTileSize;
     int tileX = (int)floorf(ox * inv);
     int tileY = (int)floorf(oy * inv);
+    tileX = std::clamp(tileX, 0, tc->width - 1);
+    tileY = std::clamp(tileY, 0, tc->height - 1);
 
     int stepX = dx > 0 ? 1 : (dx < 0 ? -1 : 0);
     int stepY = dy > 0 ? 1 : (dy < 0 ? -1 : 0);
@@ -103,11 +125,11 @@ TILECOL_API float tilecol_raycast(
     float tDeltaY = (dy != 0) ? fabsf(ts / dy) : 1e18f;
 
     float dist = 0;
-    while (dist < maxDist) {
+    while (dist <= maxDist) {
         if (isSolid(tc, tileX, tileY)) {
             if (hitTX) *hitTX = tileX;
             if (hitTY) *hitTY = tileY;
-            return dist;
+            return originalEntry + dist;
         }
 
         if (tMaxX < tMaxY) {
@@ -132,7 +154,7 @@ TILECOL_API int tilecol_line_of_sight(
 ) {
     float dx = bx - ax, dy = by - ay;
     float dist = sqrtf(dx * dx + dy * dy);
-    if (dist < 1e-6f) return 1;
+    if (dist < 1e-6f) return !isSolid(tc, (int)floorf(ax * tc->invTileSize), (int)floorf(ay * tc->invTileSize));
 
     int hitTX, hitTY;
     float hitDist = tilecol_raycast(tc, ax, ay, dx, dy, dist, &hitTX, &hitTY);

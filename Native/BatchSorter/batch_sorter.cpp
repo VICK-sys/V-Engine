@@ -33,6 +33,8 @@ struct BatchSorterImpl {
 // Stable sort comparator
 static bool compareEntries(const EntityEntry& a, const EntityEntry& b) {
     if (a.layer != b.layer) return a.layer < b.layer;
+    if (std::isnan(a.zorder) != std::isnan(b.zorder)) return std::isnan(a.zorder);
+    if (std::isnan(a.zorder)) return a.originalIndex < b.originalIndex;
     if (a.zorder != b.zorder) return a.zorder < b.zorder;
     return a.originalIndex < b.originalIndex; // stable tiebreaker
 }

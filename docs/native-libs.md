@@ -1,147 +1,178 @@
-# V-Engine Native C++ Libraries
+# Native libraries
 
-> Build instructions and documentation for the native DLLs (fluid solver, GIF decoder, video player, physics solver).
+The engine includes ten C++ libraries with C# bindings.
+The distributed runtime targets Windows x64.
+All libraries have public engine APIs or integrated execution paths.
 
-## Native C++ Libraries
-Build the libraries separately with CMake from their directories under `Native/`.
-Windows Release builds write DLLs to each library's `build/Release/` directory.
-Copy required DLLs into the application output directory.
-Native binaries are not included.
-Fluid simulation, GIF decoding, and noise have managed fallback paths.
-Video playback requires the native video library and its FFmpeg dependencies.
+## Build and package
 
-```bash
-# Build fluid solver
-cd Native/FluidSolver && mkdir build && cd build
-cmake .. -G "Visual Studio 17 2022" -A x64 && cmake --build . --config Release
+Run `Tools/build-native.ps1` or `vengine.bat native` from the repository root.
+The script downloads dependencies from `Native/dependencies.json` and checks each archive hash before extraction.
+Downloads remain in `artifacts/downloads/` for reuse.
 
-# Build GIF decoder
-cd Native/GifDecoder && mkdir build && cd build
-cmake .. -G "Visual Studio 17 2022" -A x64 && cmake --build . --config Release
+CMake builds every module through `Native/CMakeLists.txt`.
+The script stages DLLs and dependency notices in `artifacts/native/Release/win-x64/`.
+The engine project copies this runtime into project-reference build and publish outputs.
+The engine NuGet package stores DLLs under `runtimes/win-x64/native/`.
 
-# Build video player (requires FFmpeg)
-set FFMPEG_DIR=C:\path\to\ffmpeg-shared
-cd Native/VideoPlayer && mkdir build && cd build
-cmake .. -G "Visual Studio 17 2022" -A x64 -DFFMPEG_DIR=%FFMPEG_DIR% && cmake --build . --config Release
+Run `Tools/package.ps1` to build, test, and package the runtime.
+Use `-Version 0.1.1` to set another package version.
+Use `-SkipNativeBuild` only when the staged runtime is current.
+Packaging requires the complete runtime and passing native integration tests.
 
-# Build physics solver
-cd Native/PhysicsSolver && mkdir build && cd build
-cmake .. -G "Visual Studio 17 2022" -A x64 && cmake --build . --config Release
+Run `Tools/verify-package.ps1` to test an isolated package consumer.
+Add `-Graphics` to check an OpenGL texture upload in a hidden window.
+Verification publishes both folder and single-file applications without relying on the development search path.
 
-# Build batch sorter
-cd Native/BatchSorter && mkdir build && cd build
-cmake .. -G "Visual Studio 17 2022" -A x64 && cmake --build . --config Release
+## Runtime dependencies
 
-# Build audio mixer
-cd Native/AudioMixer && mkdir build && cd build
-cmake .. -G "Visual Studio 17 2022" -A x64 && cmake --build . --config Release
+The dependency manifest pins SDL2, SDL2_ttf, SDL2_mixer, and an FFmpeg LGPL shared build.
+The build script preserves dependency notices and copies runtime DLLs from these archives.
+The engine libraries use the static MSVC runtime.
+They do not require AVX2 instructions.
 
-# Build pathfinder
-cd Native/Pathfinder && mkdir build && cd build
-cmake .. -G "Visual Studio 17 2022" -A x64 && cmake --build . --config Release
+FFmpeg binaries come from a retained monthly BtbN build.
+Upstream retains monthly builds for two years.
+Keep downloaded archives when rebuilding older package versions.
+Update the manifest URL and SHA-256 together when changing dependencies.
 
-# Build tilemap collision
-cd Native/TilemapCollision && mkdir build && cd build
-cmake .. -G "Visual Studio 17 2022" -A x64 && cmake --build . --config Release
+Sources and build information:
 
-# Build image processor
-cd Native/ImageProcess && mkdir build && cd build
-cmake .. -G "Visual Studio 17 2022" -A x64 && cmake --build . --config Release
+- [SDL2](https://github.com/libsdl-org/SDL/tree/release-2.32.10)
+- [SDL2_ttf](https://github.com/libsdl-org/SDL_ttf/tree/release-2.24.0)
+- [SDL2_mixer](https://github.com/libsdl-org/SDL_mixer/tree/release-2.8.1)
+- [FFmpeg source revision](https://github.com/FFmpeg/FFmpeg/tree/1a748fe2cd)
+- [FFmpeg build recipes](https://github.com/BtbN/FFmpeg-Builds)
 
-# Build noise
-cd Native/Noise && mkdir build && cd build
-cmake .. -G "Visual Studio 17 2022" -A x64 && cmake --build . --config Release
-```
+Keep dependency notices with distributed applications.
+The engine package does not assign a project license.
 
-## Physics Solver (PhysicsSolver)
-- Native C++ sequential impulse 2D physics solver with SOA body layout
-- Broad phase: spatial hash grid with configurable cell size
-- Narrow phase: SAT polygon-polygon, circle-circle, circle-polygon
-- Solver: warm-started velocity constraints + Baumgarte position correction
-- Compiled with `/O2 /arch:AVX2 /fp:fast` for SIMD auto-vectorization
-- C API: `physics_create`, `physics_upload_bodies`, `physics_solve`, `physics_download_bodies`, `physics_download_contacts`
-- P/Invoke wrapper: `NativePhysicsSolver.cs`
-- Falls back to managed C# solver when DLL is not present
+## Runtime inspection
 
-## Batch Sorter (BatchSorter)
-- Native C++ stable sort + frustum cull for entity draw ordering
-- Sorts by (layer, zorder, original_index) for guaranteed stable ordering
-- AABB frustum culling eliminates off-screen entities before drawing
-- C API: `batch_create`, `batch_upload`, `batch_sort_and_cull`, `batch_get_order`
-- P/Invoke wrapper: `NativeBatchSorter.cs`
-- Falls back to managed sort in Group.cs when DLL is not present
+Call `NativeRuntime.Inspect()` to check all ten engine libraries and three SDL libraries.
+Call `NativeRuntime.IsAvailable(name)` to check one library.
+Call `NativeRuntime.Require(name)` to fail with a diagnostic when a required library cannot load.
+Checks include required entry points and cache their results for the process lifetime.
+Install the runtime before starting the application.
 
-## Audio Mixer (AudioMixer)
-- Native C++ spatial audio mixer with per-sample processing
-- 64 simultaneous voices with volume, stereo panning, and one-pole low-pass filter
-- Equal-power panning for natural stereo imaging
-- Low-pass filter coefficient per voice for distance-based muffling
-- Mix output as S16 interleaved stereo, suitable for SDL audio callback
-- C API: `mixer_create`, `mixer_play`, `mixer_set_spatial`, `mixer_mix`
-- P/Invoke wrapper: `NativeAudioMixer.cs`
-- Falls back to SDL_mixer spatial audio when DLL is not present
+## Physics
 
-## Pathfinder (Pathfinder)
-- Native C++ A* grid pathfinding with binary min-heap priority queue
-- 4-directional (Manhattan) and 8-directional (octile) movement
-- Diagonal corner-cut prevention (requires adjacent cardinals to be walkable)
-- Configurable max search limit to cap CPU cost
-- Dynamic grid updates: `pf_set_cell` for single tiles, `pf_update_grid` for bulk
-- C API: `pf_create`, `pf_find_path`, `pf_get_path_x/y`, `pf_set_cell`
-- P/Invoke wrapper: `NativePathfinder.cs`
+`PhysicsWorld` uses `physics_solver` for contact preparation, velocity impulses, and position correction.
+The world retains managed broad phase, shape detection, joints, filters, contact events, sleeping, and continuous collision detection.
+Both solvers run at the same points in the simulation step.
 
-## Tilemap Collision (TilemapCollision)
-- Native C++ tilemap collision queries on flat solid grids
-- AABB overlap test and region query (returns all solid tiles in a rect)
-- DDA raycast through the tile grid with exact hit distance
-- Line-of-sight query (A to B, blocked by any solid tile?)
-- Dynamic tile updates: `tilecol_set` for single tiles
-- C API: `tilecol_create`, `tilecol_aabb_test`, `tilecol_raycast`, `tilecol_line_of_sight`
-- P/Invoke wrapper: `NativeTilemapCollision.cs`
+`UseNativeSolver` defaults to true.
+`UsingNativeSolver` reports the selected path.
+Set `UseNativeSolver=false` to select the managed solver.
+Missing native libraries also select the managed solver.
 
-## Image Processing (ImageProcess)
-- Native C++ RGBA pixel operations with AVX2 auto-vectorization
-- Separable box blur (two-pass horizontal+vertical)
-- Outline generation: expand alpha silhouette by N pixels in a given color
-- Tint: per-pixel RGB multiply
-- Palette swap: replace colors within tolerance
-- Grayscale (BT.601 luminance) and invert
-- C API: `imgproc_blur`, `imgproc_outline`, `imgproc_tint`, `imgproc_palette_swap`, `imgproc_grayscale`, `imgproc_invert`
-- P/Invoke wrapper: `NativeImageProcess.cs`
+## Group sorting
 
-## Noise (Noise)
-- Native C++ procedural noise library
-- 2D/3D classic Perlin noise with fade/lerp/gradient functions
-- 2D Simplex noise (faster, fewer axis artifacts)
-- 2D Worley (cellular) noise with jitter control
-- Fractal Brownian Motion (multi-octave Perlin sum)
-- Batch fill functions for filling entire 2D buffers at once
-- Deterministic seeding via permutation table shuffle
-- C API: `noise_perlin_2d/3d`, `noise_simplex_2d`, `noise_worley_2d`, `noise_perlin_fill_2d`, etc.
-- Managed fallback: `Noise.cs` includes a pure C# Perlin implementation when DLL is unavailable
+`Group.Draw()` uses `batch_sorter` when draw order changes.
+Sorting preserves layer, depth, and original-index ordering, including NaN depths.
+Invisible entities remain in the group and retain their sorted positions.
+The group retains its rendering and visibility logic.
 
-## GIF & Video Playback
+`UseNativeSorting` defaults to true.
+`UsingNativeSorting` reports the selected path.
+Set `UseNativeSorting=false` to use managed sorting.
 
-### GifSprite
-- Loads animated GIFs via native C++ decoder (stb_image) or managed StbImageSharp fallback
-- Native mode: single reusable GPU texture, frames streamed from native memory via `glTexSubImage2D`
-- Managed mode: capped at 60 frames (GPU memory limit)
-- Preloadable via `preload_assets()` — decoded on background thread, cached for instant use
-- Supports: scale, rotation, flip, tint, speed control, loop/once, pause/resume
+## Fluid simulation
 
-### VideoSprite
-- Decodes video via native FFmpeg DLL (MP4, AVI, MKV, WebM, MOV)
-- Video: RGBA frames uploaded to GPU each frame
-- Audio: decoded to S16 PCM, queued to SDL audio device
-- Muted by default — unmute for focus/playback
-- Supports: scale, position, loop, seek, speed control
+`FluidSystem` uses `fluid_solver` for particle substeps.
+C# retains emission, body interaction, buoyancy, merging, splitting, and rendering.
+`UseNativeSolver=false` selects managed particle simulation.
+`UsingNativeSolver` reports the selected path.
+The WCSPH mode remains managed.
 
-## Grid Fluid System (GridFluidSystem)
+## Pathfinding
 
-Cellular automaton water simulation that fills containers:
-- Water flows down by gravity, spreads sideways, equalizes under pressure
-- Per-cell velocity field: water splashes upward on impact, sloshes on mouse interaction
-- Deep equalization: submerged cells level out, surface cells stay dynamic
-- Rendering: depth gradient (surface → deep blue), animated surface wave, surface highlight line
-- Splash particles: auto-emitted at impact points via attached ParticleEmitter
-- Mouse interaction: drag to push water, right-drag to carve, middle-click to add
+`Pathfinder` owns a native grid and implements `IDisposable`.
+Its constructor accepts width, height, and an optional row-major walkability array.
+Without an array, every cell starts walkable.
+
+- `FindPath()` returns grid coordinates from start to destination.
+- `allowDiagonal` enables eight-direction movement without corner cutting.
+- `maxSearch=0` permits a full search.
+- A blocked endpoint, unreachable destination, or exhausted search returns an empty path.
+- `SetWalkable()` changes one cell.
+- `UpdateGrid()` replaces the walkability data.
+
+`Tilemap.CreatePathfinder()` creates a snapshot where solid tiles are blocked.
+Update the pathfinder after changing the tilemap.
+
+## Tile collision
+
+`TileCollisionGrid` owns a native solid grid and implements `IDisposable`.
+Coordinates use pixels relative to the grid origin.
+
+- `SetSolid()` changes one cell.
+- `Overlaps()` tests a rectangle against solid cells.
+- `Query()` returns overlapping solid cells in row order.
+- `Raycast()` returns hit distance and tile coordinates, or -1 for no hit.
+- `HasLineOfSight()` tests a segment against solid cells.
+
+`Tilemap` maintains its native grid when tile solidity changes.
+`CollideEntity()` and `CollideEntityOneway()` use native rejection tests for full-tile collision maps.
+Maps with custom collision rectangles retain the existing separation path.
+Set `UseNativeCollision=false` to select managed entity collision.
+
+`QuerySolidTiles()`, `RaycastTiles()`, and `HasTileLineOfSight()` accept world coordinates.
+These queries test full solid tiles and require the native runtime.
+They do not use custom collision rectangles.
+
+## Image processing
+
+`ImageProcessing` accepts row-major RGBA byte arrays with four bytes per pixel.
+It validates buffer sizes before calling `image_process`.
+
+- `Blur()` returns a new buffer with a separable box blur.
+- `Outline()` returns a new buffer with an outline inside the existing dimensions.
+- `Tint()`, `PaletteSwap()`, `Grayscale()`, and `Invert()` modify the input buffer.
+- Grayscale and inversion preserve alpha.
+
+Pass processed buffers to `GLTexture.FromRGBA()` or `GLTexture.UpdateRGBA()`.
+These functions require the native runtime.
+
+## PCM mixing
+
+`PcmMixer` owns a native mixer and implements `IDisposable`.
+It accepts signed 16-bit mono or interleaved stereo samples.
+Input samples must use the mixer's sample rate.
+`Play()` copies samples into native ownership and returns a voice index, or -1 when all 64 voices are occupied.
+
+`SetSpatial()` sets volume, stereo pan, and low-pass filtering.
+`Mix()` writes interleaved stereo samples into a caller-provided buffer.
+`Stop()`, `StopAll()`, `IsPlaying()`, and `ActiveVoices` control voice lifetime.
+Mixer operations synchronize access between playback and control threads.
+
+`AudioManager.PlayPcm()` plays 44100 Hz PCM through the SDL audio callback.
+`SetPcmSpatial()`, `StopPcm()`, and `IsPcmPlaying()` use its PCM voice indices.
+PCM voice indices are separate from SDL sound channel indices.
+Master and sound volume settings affect PCM playback.
+`StopAllSounds()` also stops PCM voices.
+File-based sound effects and music continue through SDL_mixer.
+
+## GIF and video
+
+`GifSprite` and `AssetLoader` use `gif_decoder` for animated textures.
+A managed GIF decoder remains available when the native library is absent.
+
+`VideoSprite` uses `video_player` and FFmpeg for video and audio decoding.
+The decoder drains delayed video frames at end of file and flushes decoder state when seeking.
+Repeated `LoadVideo()` calls release the previous decoder, texture, staging buffer, and audio device.
+Video playback requires the native runtime.
+
+## Noise
+
+`Noise` exposes Perlin, Simplex, and Worley functions through `noise`.
+Bulk fill functions validate output dimensions before passing buffers to native code.
+The managed fallback provides two-dimensional Perlin noise.
+Use the packaged native runtime for the full noise API.
+
+## Verification
+
+`NativeIntegrationTests` requires every library when `VENGINE_REQUIRE_NATIVE=1`.
+Tests compare physics, fluid gravity, and sorting against managed controls.
+Other checks cover blocked paths, search limits, tile boundaries, image buffers, audio callbacks, GIF frames, video draining, and seeded noise.
+The package consumer verifies runtime loading and execution from isolated publish outputs.

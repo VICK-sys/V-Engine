@@ -1,3 +1,4 @@
+using VEngine.Engine.Core;
 using System;
 using System.Runtime.InteropServices;
 
@@ -18,31 +19,31 @@ internal static class NativePathfinder
     public static extern void pf_destroy(IntPtr pf);
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void pf_update_grid(IntPtr pf, int[] walkable);
+    public static extern void pf_update_grid(NativeResource pf, int[] walkable);
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void pf_set_cell(IntPtr pf, int x, int y, int walkable);
+    public static extern void pf_set_cell(NativeResource pf, int x, int y, int walkable);
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
     public static extern int pf_find_path(
-        IntPtr pf, int sx, int sy, int ex, int ey,
+        NativeResource pf, int sx, int sy, int ex, int ey,
         int allowDiagonal, int maxSearch
     );
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr pf_get_path_x(IntPtr pf);
+    public static extern IntPtr pf_get_path_x(NativeResource pf);
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr pf_get_path_y(IntPtr pf);
+    public static extern IntPtr pf_get_path_y(NativeResource pf);
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int pf_is_walkable(IntPtr pf, int x, int y);
+    public static extern int pf_is_walkable(NativeResource pf, int x, int y);
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int pf_width(IntPtr pf);
+    public static extern int pf_width(NativeResource pf);
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int pf_height(IntPtr pf);
+    public static extern int pf_height(NativeResource pf);
 
     public static bool IsAvailable()
     {

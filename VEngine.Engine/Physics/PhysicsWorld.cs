@@ -15,6 +15,8 @@ namespace VEngine.Engine.Physics;
 /// </summary>
 public class PhysicsWorld
 {
+    public bool UseNativeSolver { get; set; } = true;
+    public bool UsingNativeSolver => UseNativeSolver && Core.NativeRuntime.IsAvailable("physics_solver");
     /// <summary>Physics simulation settings (gravity, iterations, limits).</summary>
     public PhysicsSettings Settings { get; set; } = new();
 
@@ -268,6 +270,7 @@ public class PhysicsWorld
     public void Step(float dt)
     {
         if (dt <= 0) return;
+        bool useNativeSolver = UsingNativeSolver;
 
         var gravity = Settings.Gravity;
         float maxLinSpeed = Settings.MaxLinearSpeed;
@@ -298,7 +301,10 @@ public class PhysicsWorld
         for (int i = 0; i < _activeContacts.Count; i++)
         {
             if (!_activeContacts[i].IsTrigger)
-                ContactSolver.PreSolve(_activeContacts[i], dt);
+            {
+                if (useNativeSolver) NativeContactSolver.PreSolve(_activeContacts[i]);
+                else ContactSolver.PreSolve(_activeContacts[i], dt);
+            }
         }
         for (int i = 0; i < _joints.Count; i++)
             _joints[i].InitVelocityConstraints(dt);
@@ -311,7 +317,10 @@ public class PhysicsWorld
             for (int i = 0; i < _activeContacts.Count; i++)
             {
                 if (!_activeContacts[i].IsTrigger)
-                    ContactSolver.SolveVelocity(_activeContacts[i]);
+                {
+                    if (useNativeSolver) NativeContactSolver.SolveVelocity(_activeContacts[i]);
+                    else ContactSolver.SolveVelocity(_activeContacts[i]);
+                }
             }
         }
 
@@ -345,7 +354,7 @@ public class PhysicsWorld
             {
                 if (!_activeContacts[i].IsTrigger)
                 {
-                    if (!ContactSolver.SolvePosition(_activeContacts[i]))
+                    if (!(useNativeSolver ? NativeContactSolver.SolvePosition(_activeContacts[i]) : ContactSolver.SolvePosition(_activeContacts[i])))
                         allSolved = false;
                 }
             }

@@ -89,6 +89,7 @@ public class FluidSystem : Entity
 
     /// <summary>Use native C++ solver when available (auto-detected). Set to false to force managed.</summary>
     public bool UseNativeSolver { get; set; } = true;
+    public bool UsingNativeSolver => UseNativeSolver && !UseWCSPH && _nativeAvailable && _nativeSolver != IntPtr.Zero;
 
     // ── Internals ──
     private FluidParticle[] _particles;
@@ -304,7 +305,7 @@ public class FluidSystem : Entity
 
         float subDt = dt / steps;
 
-        bool useNative = UseNativeSolver && _nativeAvailable && _nativeSolver != IntPtr.Zero;
+        bool useNative = UsingNativeSolver;
 
         if (useNative)
         {

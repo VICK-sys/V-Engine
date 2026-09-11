@@ -2,7 +2,6 @@
 // Decodes all frames upfront into a contiguous RGBA buffer.
 // C# uploads one frame at a time to a single GPU texture (reused).
 
-#define GIF_EXPORTS
 #include "gif_decoder.h"
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -12,6 +11,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <vector>
+#include <filesystem>
+#include <climits>
 
 struct GifHandle {
     unsigned char* pixels = nullptr;  // all frames contiguous: frame0 | frame1 | ...
@@ -23,18 +24,28 @@ struct GifHandle {
 };
 
 GIF_API GifDecoder gif_open(const char* path) {
+    if (!path) return nullptr;
+#ifdef _WIN32
+    FILE* f = _wfopen(std::filesystem::u8path(path).c_str(), L"rb");
+#else
     FILE* f = fopen(path, "rb");
+#endif
     if (!f) return nullptr;
 
     // Get file size
     fseek(f, 0, SEEK_END);
     long file_size = ftell(f);
+    if (file_size <= 0 || file_size > INT_MAX) { fclose(f); return nullptr; }
     fseek(f, 0, SEEK_SET);
 
     // Read entire file into memory
     auto* file_data = (unsigned char*)malloc(file_size);
     if (!file_data) { fclose(f); return nullptr; }
-    fread(file_data, 1, file_size, f);
+    if (fread(file_data, 1, file_size, f) != (size_t)file_size) {
+        free(file_data);
+        fclose(f);
+        return nullptr;
+    }
     fclose(f);
 
     // Decode all GIF frames

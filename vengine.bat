@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0"
 if "%1"=="build" (
     dotnet build VEngine.sln
 ) else if "%1"=="clean" (
@@ -7,6 +8,10 @@ if "%1"=="build" (
     dotnet build VEngine.sln -c Release
 ) else if "%1"=="test" (
     dotnet test VEngine.Tests
+) else if "%1"=="native" (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "Tools\build-native.ps1"
+) else if "%1"=="pack" (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "Tools\package.ps1"
 ) else if "%1"=="editor" (
     start "" "Tools\sprite-editor.html"
 ) else if "%1"=="levels" (
@@ -21,6 +26,8 @@ if "%1"=="build" (
     echo   clean     Clean build artifacts
     echo   release   Compile the Release configuration
     echo   test      Run engine tests
+    echo   native    Build and stage the Windows x64 native runtime
+    echo   pack      Test and package the engine and native runtime
     echo   editor    Open sprite editor in browser
     echo   levels    Open level editor in browser
     echo   flowchart Open engine flowchart in browser

@@ -5,11 +5,35 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PackageId>VEngine.Engine</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>VICK-sys</Authors>
+    <Description>C# game engine with Lua scripting, 2D rendering, physics, and asset tools.</Description>
+    <RepositoryUrl>https://github.com/VICK-sys/V-Engine</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <VEngineNativeDirectory Condition="'$(VEngineNativeDirectory)' == ''">$(MSBuildThisFileDirectory)../artifacts/native/Release/win-x64</VEngineNativeDirectory>
   </PropertyGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="VEngine.Tests" />
   </ItemGroup>
+
+  <ItemGroup Condition="Exists('$(VEngineNativeDirectory)/runtime.complete')">
+    <Content Include="$(VEngineNativeDirectory)/*.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Pack="true" PackagePath="runtimes/win-x64/native/" />
+    <Content Include="$(VEngineNativeDirectory)/licenses/**/*" Link="licenses/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Pack="true" PackagePath="contentFiles/any/any/licenses/" PackageCopyToOutput="true" />
+    <None Include="$(VEngineNativeDirectory)/dependencies.json" Pack="true" PackagePath="" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="" />
+    <None Update="buildTransitive/VEngine.Engine.targets" Pack="true" PackagePath="buildTransitive/VEngine.Engine.targets" />
+  </ItemGroup>
+  <Target Name="ValidateNativePackage" BeforeTargets="GenerateNuspec">
+    <Error Condition="!Exists('$(VEngineNativeDirectory)/runtime.complete')" Text="Build the native runtime with Tools/build-native.ps1 before packing." />
+    <ItemGroup>
+      <RequiredNativeLibrary Include="audio_mixer;batch_sorter;fluid_solver;gif_decoder;image_process;noise;pathfinder;physics_solver;tilemap_collision;video_player;SDL2;SDL2_ttf;SDL2_mixer" />
+    </ItemGroup>
+    <Error Condition="!Exists('$(VEngineNativeDirectory)/%(RequiredNativeLibrary.Identity).dll')" Text="Missing native package library: %(RequiredNativeLibrary.Identity). Rebuild the native runtime." />
+  </Target>
 
   <ItemGroup>
     <PackageReference Include="MoonSharp" Version="2.0.0" />

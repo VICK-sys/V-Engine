@@ -1,7 +1,6 @@
 // video_player.cpp — FFmpeg video decoder for V-Engine
 // Decodes video frames to RGBA pixel data for GPU texture upload.
 
-#define VIDEO_EXPORTS
 #include "video_player.h"
 
 extern "C" {
@@ -14,6 +13,7 @@ extern "C" {
 }
 
 #include <cstring>
+#include <cmath>
 
 struct VideoPlayerHandle {
     AVFormatContext*  fmtCtx = nullptr;
@@ -30,6 +30,7 @@ struct VideoPlayerHandle {
     double           duration = 0;
     double           fps = 0;
     bool             finished = false;
+    bool             draining = false;
     unsigned char*   rgbaBuffer = nullptr;
 
     // Audio
@@ -205,10 +206,21 @@ VIDEO_API int video_next_frame(VideoPlayer vp) {
     vp->audioBufSize = 0; // reset audio buffer for this frame
 
     while (true) {
-        int ret = av_read_frame(vp->fmtCtx, vp->packet);
-        if (ret < 0) {
+        int ret = avcodec_receive_frame(vp->codecCtx, vp->frame);
+        if (ret >= 0) {
+            sws_scale(vp->swsCtx, vp->frame->data, vp->frame->linesize,
+                0, vp->height, vp->rgbaFrame->data, vp->rgbaFrame->linesize);
+            return 1;
+        }
+        if (ret == AVERROR_EOF || vp->draining) {
             vp->finished = true;
             return 0;
+        }
+        ret = av_read_frame(vp->fmtCtx, vp->packet);
+        if (ret < 0) {
+            vp->draining = true;
+            avcodec_send_packet(vp->codecCtx, nullptr);
+            continue;
         }
 
         // Audio packet — decode and buffer
@@ -218,9 +230,9 @@ VIDEO_API int video_next_frame(VideoPlayer vp) {
                 int outSamples = vp->audioFrame->nb_samples;
                 if (vp->audioBufSize + outSamples <= vp->audioBufCapacity) {
                     uint8_t* outBuf = (uint8_t*)(vp->audioBuf + vp->audioBufSize * vp->audioChannels);
-                    swr_convert(vp->swrCtx, &outBuf, outSamples,
+                    int converted = swr_convert(vp->swrCtx, &outBuf, outSamples,
                         (const uint8_t**)vp->audioFrame->data, outSamples);
-                    vp->audioBufSize += outSamples;
+                    if (converted > 0) vp->audioBufSize += converted;
                 }
             }
             av_packet_unref(vp->packet);
@@ -236,18 +248,6 @@ VIDEO_API int video_next_frame(VideoPlayer vp) {
         ret = avcodec_send_packet(vp->codecCtx, vp->packet);
         av_packet_unref(vp->packet);
         if (ret < 0) continue;
-
-        ret = avcodec_receive_frame(vp->codecCtx, vp->frame);
-        if (ret == AVERROR(EAGAIN)) continue;
-        if (ret < 0) { vp->finished = true; return 0; }
-
-        // Convert to RGBA
-        sws_scale(vp->swsCtx,
-                  vp->frame->data, vp->frame->linesize,
-                  0, vp->height,
-                  vp->rgbaFrame->data, vp->rgbaFrame->linesize);
-
-        return 1;
     }
 }
 
@@ -256,10 +256,14 @@ VIDEO_API const unsigned char* video_frame_data(VideoPlayer vp) {
 }
 
 VIDEO_API void video_seek(VideoPlayer vp, double seconds) {
-    if (!vp) return;
+    if (!vp || !std::isfinite(seconds) || seconds < 0) return;
     int64_t ts = (int64_t)(seconds * AV_TIME_BASE);
-    av_seek_frame(vp->fmtCtx, -1, ts, AVSEEK_FLAG_BACKWARD);
+    if (av_seek_frame(vp->fmtCtx, -1, ts, AVSEEK_FLAG_BACKWARD) < 0) return;
     avcodec_flush_buffers(vp->codecCtx);
+    if (vp->audioCodecCtx) avcodec_flush_buffers(vp->audioCodecCtx);
+    if (vp->swrCtx) { swr_close(vp->swrCtx); swr_init(vp->swrCtx); }
+    vp->audioBufSize = 0;
+    vp->draining = false;
     vp->finished = false;
 }
 
@@ -282,7 +286,7 @@ VIDEO_API int video_audio_channels(VideoPlayer vp) {
 }
 
 VIDEO_API int video_get_audio(VideoPlayer vp, short* buffer, int max_samples) {
-    if (!vp || !vp->hasAudio || vp->audioBufSize <= 0) return 0;
+    if (!vp || !vp->hasAudio || vp->audioBufSize <= 0 || max_samples <= 0 || !buffer) return 0;
     int samples = vp->audioBufSize < max_samples ? vp->audioBufSize : max_samples;
     memcpy(buffer, vp->audioBuf, samples * vp->audioChannels * sizeof(short));
     return samples;

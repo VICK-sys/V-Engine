@@ -1,3 +1,4 @@
+using VEngine.Engine.Core;
 using System;
 using System.Runtime.InteropServices;
 
@@ -19,17 +20,17 @@ internal static class NativeBatchSorter
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
     public static extern void batch_upload(
-        IntPtr sorter, int count,
+        NativeResource sorter, int count,
         int[] layer, float[] zorder, int[] originalIndex, int[] visible,
         float[] screenX, float[] screenY, float[] screenW, float[] screenH,
         float viewportW, float viewportH
     );
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int batch_sort_and_cull(IntPtr sorter);
+    public static extern int batch_sort_and_cull(NativeResource sorter);
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr batch_get_order(IntPtr sorter);
+    public static extern IntPtr batch_get_order(NativeResource sorter);
 
     public static bool IsAvailable()
     {

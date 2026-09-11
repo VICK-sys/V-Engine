@@ -1,3 +1,4 @@
+using VEngine.Engine.Core;
 using System;
 using System.Runtime.InteropServices;
 
@@ -18,30 +19,30 @@ internal static class NativeTilemapCollision
     public static extern void tilecol_destroy(IntPtr tc);
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void tilecol_update(IntPtr tc, int[] solid);
+    public static extern void tilecol_update(NativeResource tc, int[] solid);
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void tilecol_set(IntPtr tc, int tx, int ty, int solid);
+    public static extern void tilecol_set(NativeResource tc, int tx, int ty, int solid);
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int tilecol_aabb_test(IntPtr tc, float x, float y, float w, float h);
+    public static extern int tilecol_aabb_test(NativeResource tc, float x, float y, float w, float h);
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
     public static extern int tilecol_aabb_query(
-        IntPtr tc, float x, float y, float w, float h,
+        NativeResource tc, float x, float y, float w, float h,
         int[] txOut, int[] tyOut, int maxResults
     );
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
     public static extern float tilecol_raycast(
-        IntPtr tc,
+        NativeResource tc,
         float ox, float oy, float dx, float dy, float maxDist,
         out int hitTX, out int hitTY
     );
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
     public static extern int tilecol_line_of_sight(
-        IntPtr tc,
+        NativeResource tc,
         float ax, float ay, float bx, float by
     );
 

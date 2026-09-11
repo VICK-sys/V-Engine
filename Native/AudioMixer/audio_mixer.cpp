@@ -5,9 +5,10 @@
 #include <cstring>
 #include <cmath>
 #include <algorithm>
+#include <vector>
 
 struct Voice {
-    const short* data;
+    std::vector<short> data;
     int sampleCount;     // total samples per channel
     int dataChannels;    // 1 = mono, 2 = stereo
     int position;        // current sample position
@@ -23,7 +24,7 @@ struct Voice {
 struct AudioMixerImpl {
     int sampleRate;
     int outChannels;
-    Voice voices[MIXER_MAX_VOICES];
+    Voice voices[MIXER_MAX_VOICES]{};
     float mixBufL[8192]; // temp float mix buffer
     float mixBufR[8192];
 };
@@ -34,7 +35,6 @@ MIXER_API AudioMixerHandle mixer_create(int sampleRate, int channels) {
     auto* m = new AudioMixerImpl();
     m->sampleRate = sampleRate;
     m->outChannels = channels;
-    memset(m->voices, 0, sizeof(m->voices));
     return m;
 }
 
@@ -49,10 +49,11 @@ MIXER_API int mixer_play(
     const short* data, int sampleCount, int dataChannels,
     float volume, float pan, int loop
 ) {
+    if (!data || sampleCount <= 0 || (dataChannels != 1 && dataChannels != 2)) return -1;
     for (int i = 0; i < MIXER_MAX_VOICES; i++) {
         if (!m->voices[i].active) {
             Voice& v = m->voices[i];
-            v.data = data;
+            v.data.assign(data, data + sampleCount * dataChannels);
             v.sampleCount = sampleCount;
             v.dataChannels = dataChannels;
             v.position = 0;
@@ -144,6 +145,7 @@ MIXER_API int mixer_mix(AudioMixerHandle m, short* output, int maxSamples) {
             // Volume + pan
             m->mixBufL[i] += sampleL * vol * panL;
             m->mixBufR[i] += sampleR * vol * panR;
+            if (v.position == v.sampleCount && !v.loop) v.active = false;
         }
     }
 

@@ -1,7 +1,6 @@
 // fluid_solver.cpp — Native PBF fluid solver for V-Engine
 // SOA layout for cache efficiency. No SIMD intrinsics (compiler auto-vectorizes with /O2 /arch:AVX2).
 
-#define FLUID_EXPORTS
 #include "fluid_solver.h"
 
 #include <cmath>

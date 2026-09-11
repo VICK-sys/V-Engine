@@ -169,7 +169,7 @@ PF_API int pf_find_path(
     int startIdx = sy * w + sx;
     int endIdx = ey * w + ex;
 
-    if (!pf->walkable[endIdx]) return 0;
+    if (!pf->walkable[startIdx] || !pf->walkable[endIdx]) return 0;
 
     // Reset
     std::fill(pf->gCost.begin(), pf->gCost.begin() + n, 1e18f);
@@ -183,11 +183,12 @@ PF_API int pf_find_path(
     int dirs = allowDiag ? 8 : 4;
     int expanded = 0;
     int limit = maxSearch > 0 ? maxSearch : n;
+    bool reached = false;
 
     while (!pf->open.empty() && expanded < limit) {
         Node cur = pf->open.pop();
         int ci = cur.index;
-        if (ci == endIdx) break;
+        if (ci == endIdx) { reached = true; break; }
 
         pf->closed[ci] = 1;
         expanded++;
@@ -221,7 +222,7 @@ PF_API int pf_find_path(
     }
 
     // Reconstruct path
-    if (pf->cameFrom[endIdx] == -1 && startIdx != endIdx)
+    if (!reached)
         return 0; // No path found
 
     // Trace back

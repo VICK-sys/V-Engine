@@ -9,6 +9,9 @@ public class Group : Entity
     private readonly List<Entity> _members = new();
     private readonly HashSet<Entity> _memberSet = new();
     private bool _drawOrderDirty = true;
+    private Graphics.EntityBatchSorter? _nativeSorter;
+    public bool UseNativeSorting { get; set; } = true;
+    public bool UsingNativeSorting => UseNativeSorting && NativeRuntime.IsAvailable("batch_sorter");
 
     // Stable sort: tag each entity with its pre-sort index, use as tiebreaker
     private static readonly Comparison<(Entity e, int idx)> _stableCompare = (a, b) =>
@@ -81,15 +84,23 @@ public class Group : Entity
     {
         if (_drawOrderDirty)
         {
-            // Stable sort: tag with original index as tiebreaker
-            int n = _members.Count;
-            _sortBuf ??= new List<(Entity, int)>(n);
-            _sortBuf.Clear();
-            for (int i = 0; i < n; i++)
-                _sortBuf.Add((_members[i], i));
-            _sortBuf.Sort(_stableCompare);
-            for (int i = 0; i < n; i++)
-                _members[i] = _sortBuf[i].e;
+            if (UsingNativeSorting)
+            {
+                _nativeSorter ??= new Graphics.EntityBatchSorter();
+                _nativeSorter.Sort(_members);
+            }
+            else
+            {
+                // Stable sort: tag with original index as tiebreaker
+                int n = _members.Count;
+                _sortBuf ??= new List<(Entity, int)>(n);
+                _sortBuf.Clear();
+                for (int i = 0; i < n; i++)
+                    _sortBuf.Add((_members[i], i));
+                _sortBuf.Sort(_stableCompare);
+                for (int i = 0; i < n; i++)
+                    _members[i] = _sortBuf[i].e;
+            }
             _drawOrderDirty = false;
         }
 
@@ -112,5 +123,7 @@ public class Group : Entity
             _members[i].Destroy();
         _members.Clear();
         _memberSet.Clear();
+        _nativeSorter?.Dispose();
+        _nativeSorter = null;
     }
 }

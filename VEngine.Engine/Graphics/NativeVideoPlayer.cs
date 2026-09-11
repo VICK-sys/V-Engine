@@ -11,7 +11,7 @@ internal static class NativeVideoPlayer
     private const string DLL = "video_player";
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr video_open(string path);
+    public static extern IntPtr video_open([MarshalAs(UnmanagedType.LPUTF8Str)] string path);
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
     public static extern void video_close(IntPtr vp);

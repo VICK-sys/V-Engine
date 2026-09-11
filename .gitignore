@@ -2,6 +2,7 @@
 [Oo]bj/
 [Bb]uild/
 /publish/
+/artifacts/
 TestResults/
 coverage/
 *.coverage

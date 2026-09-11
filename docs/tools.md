@@ -10,6 +10,8 @@
 | `vengine clean` | Remove bin/obj build artifacts (`dotnet clean`) |
 | `vengine release` | Build the Release configuration |
 | `vengine test` | Run engine tests |
+| `vengine native` | Build and stage the Windows x64 native runtime |
+| `vengine pack` | Test and package the engine |
 | `vengine editor` | Open the sprite editor in your browser |
 | `vengine levels` | Open the level editor in your browser |
 | `vengine flowchart` | Open the engine flowchart in your browser |

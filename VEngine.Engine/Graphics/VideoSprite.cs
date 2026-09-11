@@ -147,6 +147,9 @@ public class VideoSprite : KinematicEntity
     /// <summary>Open a video file from the Assets folder.</summary>
     public VideoSprite LoadVideo(string path)
     {
+        ObjectDisposedException.ThrowIf(Destroyed, this);
+        NativeRuntime.Require("video_player");
+        ReleaseMedia();
         string fullPath = System.IO.Path.IsPathRooted(path) ? path : Eng.Asset(path);
 
         _handle = NativeVideoPlayer.video_open(fullPath);
@@ -426,7 +429,7 @@ public class VideoSprite : KinematicEntity
     private void StopDecodeThread()
     {
         _stopThread = true;
-        _decodeThread?.Join(500);
+        _decodeThread?.Join();
         _decodeThread = null;
     }
 
@@ -677,9 +680,15 @@ public class VideoSprite : KinematicEntity
 
     protected override void OnDestroy()
     {
+        ReleaseMedia();
+    }
+
+    private void ReleaseMedia()
+    {
         _playing = false;
         StopDecodeThread();
         _texture?.Dispose();
+        _texture = null;
         if (_stagingBuf != IntPtr.Zero)
         {
             Marshal.FreeHGlobal(_stagingBuf);
@@ -695,5 +704,13 @@ public class VideoSprite : KinematicEntity
             NativeVideoPlayer.video_close(_handle);
             _handle = IntPtr.Zero;
         }
+        _hasAudio = false;
+        _audioBuf = null;
+        _audioRing = null;
+        _audioRingWrite = _audioRingRead = _audioRingSize = 0;
+        _stagedFrameCount = _lastUploadedCount = _framesDecoded = _lastUploadedFrameIdx = 0;
+        _decodeEOF = false;
+        _finished = false;
+        CurrentTime = Duration = 0;
     }
 }

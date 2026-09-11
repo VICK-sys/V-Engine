@@ -1,6 +1,3 @@
 @echo off
-if not exist build mkdir build
-cd build
-cmake .. -G "Visual Studio 17 2022" -A x64
-cmake --build . --config Release
-echo Built Release\tilemap_collision.dll
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0..\..\Tools\build-native.ps1"
+exit /b %errorlevel%

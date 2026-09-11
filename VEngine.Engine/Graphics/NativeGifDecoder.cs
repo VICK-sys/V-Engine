@@ -13,7 +13,7 @@ internal static class NativeGifDecoder
     private const string DLL = "gif_decoder";
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr gif_open(string path);
+    public static extern IntPtr gif_open([MarshalAs(UnmanagedType.LPUTF8Str)] string path);
 
     [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
     public static extern void gif_close(IntPtr g);

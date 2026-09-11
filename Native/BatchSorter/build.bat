@@ -1,9 +1,3 @@
 @echo off
-REM Build batch_sorter.dll using CMake + MSVC
-
-if not exist build mkdir build
-cd build
-cmake .. -G "Visual Studio 17 2022" -A x64
-cmake --build . --config Release
-echo.
-echo Built Release\batch_sorter.dll
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0..\..\Tools\build-native.ps1"
+exit /b %errorlevel%

@@ -21,6 +21,36 @@ public class Tilemap : Entity
     private readonly int _gridHeight;
     private readonly int[] _tiles;
     private readonly bool[] _solid;
+    private TileCollisionGrid? _collisionGrid;
+    public bool UseNativeCollision { get; set; } = true;
+    public bool UsingNativeCollision => UseNativeCollision && NativeRuntime.IsAvailable("tilemap_collision");
+
+    private TileCollisionGrid CollisionGrid
+    {
+        get
+        {
+            ObjectDisposedException.ThrowIf(Destroyed, this);
+            if (_collisionGrid == null)
+            {
+                _collisionGrid = new(_gridWidth, _gridHeight, _tileSize);
+                for (int row = 0; row < _gridHeight; row++)
+                    for (int col = 0; col < _gridWidth; col++)
+                        _collisionGrid.SetSolid(col, row, _solid[row * _gridWidth + col]);
+            }
+            return _collisionGrid;
+        }
+    }
+
+    public Pathfinder CreatePathfinder() => new(_gridWidth, _gridHeight, _solid.Select(solid => !solid).ToArray());
+
+    public (int X, int Y)[] QuerySolidTiles(float x, float y, float width, float height) =>
+        CollisionGrid.Query(x - Position.X, y - Position.Y, width, height);
+
+    public float RaycastTiles(float x, float y, float dx, float dy, float maxDistance, out int tileX, out int tileY) =>
+        CollisionGrid.Raycast(x - Position.X, y - Position.Y, dx, dy, maxDistance, out tileX, out tileY);
+
+    public bool HasTileLineOfSight(float ax, float ay, float bx, float by) =>
+        CollisionGrid.HasLineOfSight(ax - Position.X, ay - Position.Y, bx - Position.X, by - Position.Y);
 
     // Animated tiles
     private readonly Dictionary<int, TileAnim> _anims = new();
@@ -74,6 +104,7 @@ public class Tilemap : Entity
         int i = row * _gridWidth + col;
         _tiles[i] = tileIndex;
         _solid[i] = tileIndex >= 0;
+        _collisionGrid?.SetSolid(col, row, _solid[i]);
     }
 
     public bool IsSolid(int col, int row)
@@ -86,6 +117,7 @@ public class Tilemap : Entity
     {
         if (col < 0 || col >= _gridWidth || row < 0 || row >= _gridHeight) return;
         _solid[row * _gridWidth + col] = solid;
+        _collisionGrid?.SetSolid(col, row, solid);
     }
 
     public (int Col, int Row) WorldToTile(float worldX, float worldY)
@@ -119,6 +151,9 @@ public class Tilemap : Entity
     public CollisionDir CollideEntity(Entity moving)
     {
         var bounds = moving.GetCollisionBounds();
+        if (_collisionRects.Count == 0 && UsingNativeCollision &&
+            !CollisionGrid.Overlaps(bounds.X - Position.X, bounds.Y - Position.Y, bounds.W, bounds.H))
+            return CollisionDir.None;
         int startCol = System.Math.Max(0, (int)((bounds.X - Position.X) / _tileSize));
         int endCol = System.Math.Min(_gridWidth - 1, (int)((bounds.X + bounds.W - Position.X) / _tileSize));
         int startRow = System.Math.Max(0, (int)((bounds.Y - Position.Y) / _tileSize));
@@ -141,6 +176,9 @@ public class Tilemap : Entity
     public bool CollideEntityOneway(Entity moving)
     {
         var bounds = moving.GetCollisionBounds();
+        if (_collisionRects.Count == 0 && UsingNativeCollision &&
+            !CollisionGrid.Overlaps(bounds.X - Position.X, bounds.Y - Position.Y, bounds.W, bounds.H))
+            return false;
         int startCol = System.Math.Max(0, (int)((bounds.X - Position.X) / _tileSize));
         int endCol = System.Math.Min(_gridWidth - 1, (int)((bounds.X + bounds.W - Position.X) / _tileSize));
         int startRow = System.Math.Max(0, (int)((bounds.Y - Position.Y) / _tileSize));
@@ -237,6 +275,8 @@ public class Tilemap : Entity
 
     protected override void OnDestroy()
     {
+        _collisionGrid?.Dispose();
+        _collisionGrid = null;
         _texture = null; // Don't dispose — texture is in shared cache
     }
 

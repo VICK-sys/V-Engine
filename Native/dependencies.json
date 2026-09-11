@@ -1,0 +1,22 @@
+[
+  {
+    "name": "SDL2",
+    "url": "https://github.com/libsdl-org/SDL/releases/download/release-2.32.10/SDL2-2.32.10-win32-x64.zip",
+    "sha256": "6cf9706eefd0a4a06dc764007934d428afaf029fabdd408a9e646048c91e18fb"
+  },
+  {
+    "name": "SDL2_ttf",
+    "url": "https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.24.0/SDL2_ttf-2.24.0-win32-x64.zip",
+    "sha256": "8d72240aafc783d37d6cf960b1a2138e6ca4eb0c1b5b9a9e71ea299d1ef27ef9"
+  },
+  {
+    "name": "SDL2_mixer",
+    "url": "https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.8.1/SDL2_mixer-2.8.1-win32-x64.zip",
+    "sha256": "ddd4454f9157a01259ac0fd6d9a99663305a358f19f828867064a2186b0f198f"
+  },
+  {
+    "name": "FFmpeg",
+    "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-31-13-27/ffmpeg-n8.1.2-50-g1a748fe2cd-win64-lgpl-shared-8.1.zip",
+    "sha256": "e9712ffbdb03ef71bbab660c75b835bfe698ef6fad0247c76d8d394a39a3db63"
+  }
+]

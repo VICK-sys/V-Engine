@@ -1,0 +1,8 @@
+<Project>
+  <Target Name="ValidateVEngineRuntime" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(RuntimeIdentifier)' != '' and '$(RuntimeIdentifier)' != 'win-x64'" Text="This VEngine.Engine package supports win-x64. Set RuntimeIdentifier to win-x64." />
+    <Error Condition="'$(PlatformTarget)' != '' and '$(PlatformTarget)' != 'AnyCPU' and '$(PlatformTarget)' != 'x64'" Text="VEngine.Engine requires an x64 process." />
+    <Error Condition="'$(PublishAot)' == 'true' or '$(PublishTrimmed)' == 'true'" Text="VEngine.Engine requires an untrimmed managed runtime. Disable PublishAot and PublishTrimmed." />
+    <Error Condition="'$(PublishSingleFile)' == 'true' and '$(IncludeNativeLibrariesForSelfExtract)' != 'true'" Text="Set IncludeNativeLibrariesForSelfExtract=true for single-file VEngine applications." />
+  </Target>
+</Project>

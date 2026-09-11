@@ -1,0 +1,10 @@
+cmake_minimum_required(VERSION 3.21)
+project(VEngineNative LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+foreach(module AudioMixer BatchSorter FluidSolver GifDecoder ImageProcess Noise Pathfinder PhysicsSolver TilemapCollision VideoPlayer)
+    add_subdirectory(${module})
+endforeach()
+install(TARGETS audio_mixer batch_sorter fluid_solver gif_decoder image_process noise pathfinder physics_solver tilemap_collision video_player
+    RUNTIME DESTINATION . LIBRARY DESTINATION .)
